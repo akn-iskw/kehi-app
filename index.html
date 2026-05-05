@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>経費振り分けアプリ 2025</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg: #f5f3ef;
+  --surface: #ffffff;
+  --surface2: #f9f8f5;
+  --border: #e2ddd6;
+  --border2: #cdc8bf;
+  --text: #1a1815;
+  --text2: #6b6560;
+  --text3: #9c978f;
+  --accent: #2d5a3d;
+  --accent-light: #e8f0eb;
+  --accent-mid: #4a8a60;
+  --danger: #c0392b;
+  --danger-light: #fdf0ee;
+  --amber: #b5620a;
+  --amber-light: #fef3e2;
+  --radius: 10px;
+  --radius-sm: 6px;
+  font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141210;
+    --surface: #1e1c19;
+    --surface2: #252320;
+    --border: #302e2a;
+    --border2: #403d38;
+    --text: #f0ede8;
+    --text2: #a09890;
+    --text3: #6b6560;
+    --accent: #5aaa78;
+    --accent-light: #1a2e20;
+    --accent-mid: #4a8a60;
+    --danger: #e05c4b;
+    --danger-light: #2a1815;
+    --amber: #d4832a;
+    --amber-light: #2a1e0a;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── LAYOUT ── */
+.app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 0 80px;
+}
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-mark {
+  width: 32px; height: 32px;
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+header h1 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+
+.year-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+/* ── TABS ── */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0 20px;
+  gap: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tab {
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: all 0.15s;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-panel { display: none; padding: 20px; }
+.tab-panel.active { display: block; }
+
+/* ── UPLOAD ZONE ── */
+.upload-section {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.upload-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-icon {
+  width: 28px; height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.icon-green { background: var(--accent-light); }
+.icon-amber { background: var(--amber-light); }
+
+.section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.upload-body { padding: 16px; }
+
+.dropzone {
+  border: 1.5px dashed var(--border2);
+  border-radius: var(--radius);
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.15s;
+  background: var(--surface2);
+}
+.dropzone:hover { background: var(--accent-light); border-color: var(--accent-mid); }
+.dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+.drop-icon { font-size: 28px; margin-bottom: 8px; }
+.drop-main { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.drop-sub { font-size: 12px; color: var(--text3); }
+
+/* ── PROGRESS ── */
+.progress-wrap {
+  margin-top: 12px;
+  display: none;
+}
+.progress-wrap.show { display: block; }
+.progress-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0;
+  transition: width 0.3s;
+}
+.progress-label { font-size: 12px; color: var(--text2); text-align: center; }
+
+/* ── RESULT CARD ── */
+.result-card {
+  margin-top: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: none;
+}
+.result-card.show { display: block; }
+
+.result-header {
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.result-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.ai-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.05em;
+}
+
+.result-fields {
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .result-fields { grid-template-columns: 1fr; }
+}
+
+.field-group { display: flex; flex-direction: column; gap: 4px; }
+.field-group.full { grid-column: 1 / -1; }
+.field-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.field-input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text);
+  font-family: inherit;
+  width: 100%;
+  transition: border 0.15s;
+}
+.field-input:focus { outline: none; border-color: var(--accent-mid); }
+select.field-input { cursor: pointer; }
+
+.register-btn {
+  margin: 0 14px 14px;
+  width: calc(100% - 28px);
+  padding: 10px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  font-family: inherit;
+}
+.register-btn:hover { opacity: 0.85; }
+.register-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── TABLE ── */
+.table-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.month-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 120px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--text);
+  font-family: inherit;
+}
+.search-input::placeholder { color: var(--text3); }
+.search-input:focus { outline: none; border-color: var(--accent-mid); }
+
+.export-btn {
+  padding: 7px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.export-btn:hover { background: var(--surface2); }
+
+.expense-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.expense-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.expense-table th {
+  background: var(--surface2);
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.expense-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.expense-table tr:last-child td { border-bottom: none; }
+.expense-table tr:hover td { background: var(--surface2); }
+
+.cat-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.amount-cell { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+
+.del-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text3);
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.1s;
+}
+.del-btn:hover { background: var(--danger-light); color: var(--danger); }
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: var(--text3);
+  font-size: 14px;
+}
+
+/* ── SUMMARY ── */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.summary-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.summary-card-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.summary-card-amount {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-card-sub {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+.breakdown-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.breakdown-table th {
+  background: var(--surface2);
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+}
+.breakdown-table th:last-child { text-align: right; }
+.breakdown-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.breakdown-table tr:last-child td { border-bottom: none; font-weight: 700; }
+.breakdown-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--accent);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  transition: all 0.25s;
+  pointer-events: none;
+  z-index: 999;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── LOADING OVERLAY ── */
+.loading-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.3);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.loading-overlay.show { display: flex; }
+.loading-box {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 24px 32px;
+  text-align: center;
+  min-width: 200px;
+}
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 13px; color: var(--text2); }
+
+/* ── CATEGORY COLORS ── */
+.cat-旅費交通費 { background: #e8f3fe; color: #1a5fa8; }
+.cat-車両費 { background: #fef3e2; color: #8a4500; }
+.cat-接待交際費 { background: #fce8f3; color: #8a1a5a; }
+.cat-消耗品費 { background: #e8fef0; color: #1a6b3a; }
+.cat-通信費 { background: #f0e8fe; color: #5a1a8a; }
+.cat-地代家賃 { background: #fef0e8; color: #8a3a1a; }
+.cat-損害保険料 { background: #e8f0fe; color: #1a3a8a; }
+.cat-会議研修費 { background: #f8f8e8; color: #6a6a00; }
+.cat-租税公課 { background: #fee8e8; color: #8a1a1a; }
+.cat-修繕費 { background: #e8fefe; color: #006a6a; }
+.cat-支払手数料 { background: #f0f0f0; color: #4a4a4a; }
+.cat-雑費 { background: #f5f0ea; color: #6a5030; }
+.cat-other { background: var(--surface2); color: var(--text2); }
+
+@media (prefers-color-scheme: dark) {
+  .cat-旅費交通費 { background: #0d2140; color: #6aaee8; }
+  .cat-車両費 { background: #301a00; color: #d49050; }
+  .cat-接待交際費 { background: #300a20; color: #d070a0; }
+  .cat-消耗品費 { background: #0a2010; color: #50c870; }
+  .cat-通信費 { background: #200a30; color: #a050d0; }
+  .cat-地代家賃 { background: #300a00; color: #d08050; }
+  .cat-損害保険料 { background: #0a1030; color: #5080d0; }
+  .cat-会議研修費 { background: #202000; color: #c0c050; }
+  .cat-租税公課 { background: #300000; color: #d05050; }
+  .cat-修繕費 { background: #002020; color: #00c0c0; }
+  .cat-支払手数料 { background: #202020; color: #909090; }
+  .cat-雑費 { background: #201508; color: #b09060; }
+  .cat-other { background: #202020; color: #909090; }
+}
+
+.bar-wrap { display: flex; align-items: center; gap: 8px; }
+.bar-bg { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s; }
+
+.month-total-row td { background: var(--accent-light) !important; font-weight: 700; color: var(--accent) !important; }
+
+/* mobile tweaks */
+@media (max-width: 600px) {
+  .tabs { padding: 0 12px; }
+  .tab { padding: 12px 12px; font-size: 12px; }
+  .tab-panel { padding: 14px; }
+  .expense-table th:nth-child(4),
+  .expense-table td:nth-child(4) { display: none; }
+  header { padding: 12px 14px; }
+  header h1 { font-size: 13px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="logo-mark">円</div>
+    <h1>経費振り分けアプリ</h1>
+    <button id="apiKeyBtn" onclick="openApiKeyModal()" title="APIキー設定" style="background:none;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text2);font-family:inherit;white-space:nowrap;">🔑 APIキー</button>
+    <span class="year-badge" id="yearBadge" onclick="openYearPicker()" title="クリックして年を変更" style="cursor:pointer;">2025年</span>
+  </header>
+
+  <!-- API KEY MODAL -->
+  <div id="apiKeyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:400;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border-radius:var(--radius);padding:24px;width:min(420px,92vw);box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <p style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;">Anthropic APIキーを設定</p>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6;">APIキーを設定すると、画像・PDFの自動読み取りができます。<br>設定しなくても手動入力は使えます。<br>キーは <a href="https://console.anthropic.com/" target="_blank" style="color:var(--accent)">console.anthropic.com</a> で取得できます。<br>このデバイスのみに保存されます。</p>
+      <input id="apiKeyInput" type="password" placeholder="sk-ant-..." autocomplete="off"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:monospace;margin-bottom:12px;">
+      <div style="display:flex;gap:8px;">
+        <button onclick="saveApiKey()" style="flex:1;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">保存する</button>
+        <button onclick="clearApiKey()" style="padding:9px 14px;background:var(--danger-light);color:var(--danger);border:1px solid var(--danger);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit;">削除</button>
+        <button onclick="closeApiKeyModal()" style="padding:9px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit;color:var(--text);">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- YEAR PICKER MODAL -->
+  <div id="yearModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:300;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border-radius:var(--radius);padding:24px;min-width:260px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+      <p style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:16px;">年度を変更</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;" id="yearGrid"></div>
+      <div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--border);padding-top:14px;">
+        <input id="customYearInput" type="number" placeholder="直接入力" min="2000" max="2099"
+          style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;font-size:13px;color:var(--text);font-family:inherit;">
+        <button onclick="applyCustomYear()" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">確定</button>
+        <button onclick="closeYearPicker()" style="padding:7px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit;color:var(--text);">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('scan')">📷 スキャン</button>
+    <button class="tab" onclick="switchTab('list')">📋 一覧</button>
+    <button class="tab" onclick="switchTab('summary')">📊 集計</button>
+  </div>
+
+  <!-- SCAN TAB -->
+  <div id="tab-scan" class="tab-panel active">
+    <div class="upload-section">
+      <div class="upload-header">
+        <div class="section-icon icon-green">📷</div>
+        <span class="section-label">領収書・レシートをアップロード</span>
+      </div>
+      <div class="upload-body">
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="fileInput" accept="image/*,application/pdf" multiple>
+          <div class="drop-icon">📷</div>
+          <p class="drop-main" id="uploadMain">写真を選択またはドロップ</p>
+          <p class="drop-sub" id="uploadSub">JPG・PNG・HEIC 対応 / 複数同時OK<br><span id="pdfHint" style="color:var(--amber);"></span></p>
+        </div>
+
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+          <p class="progress-label" id="progressLabel">AIが読み取り中...</p>
+        </div>
+
+        <div class="result-card" id="resultCard">
+          <div class="result-header">
+            <span class="result-title" id="resultTitle">読み取り結果</span>
+            <span class="ai-badge">AI 解析済み</span>
+          </div>
+
+          <div id="previewImgWrap" style="padding:0 14px 12px; display:none;">
+            <img id="previewImg" style="max-height:160px; width:100%; object-fit:contain; border-radius:6px; border:1px solid var(--border);">
+          </div>
+
+          <div class="result-fields">
+            <div class="field-group">
+              <label class="field-label">日付</label>
+              <input class="field-input" type="date" id="f_date">
+            </div>
+            <div class="field-group">
+              <label class="field-label">月</label>
+              <select class="field-input" id="f_month">
+                <option value="1">1月</option><option value="2">2月</option>
+                <option value="3">3月</option><option value="4">4月</option>
+                <option value="5">5月</option><option value="6">6月</option>
+                <option value="7">7月</option><option value="8">8月</option>
+                <option value="9">9月</option><option value="10">10月</option>
+                <option value="11">11月</option><option value="12">12月</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label">借方科目</label>
+              <select class="field-input" id="f_category">
+                <option>旅費交通費</option><option>車両費</option><option>接待交際費</option>
+                <option>消耗品費</option><option>通信費</option><option>地代家賃</option>
+                <option>損害保険料</option><option>会議・研修費</option><option>租税公課</option>
+                <option>修繕費</option><option>支払手数料</option><option>雑費</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label">金額 (¥)</label>
+              <input class="field-input" type="number" id="f_amount" placeholder="0">
+            </div>
+            <div class="field-group full">
+              <label class="field-label">取引先</label>
+              <input class="field-input" type="text" id="f_vendor" placeholder="店舗・取引先名">
+            </div>
+            <div class="field-group full">
+              <label class="field-label">内容</label>
+              <input class="field-input" type="text" id="f_detail" placeholder="品目・用途">
+            </div>
+          </div>
+
+          <button class="register-btn" id="registerBtn" onclick="registerEntry()">
+            この内容で登録する
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- manual entry -->
+    <div class="upload-section">
+      <div class="upload-header">
+        <div class="section-icon icon-amber">✏️</div>
+        <span class="section-label">手動入力</span>
+      </div>
+      <div class="upload-body">
+        <div class="result-fields" style="padding:0;">
+          <div class="field-group">
+            <label class="field-label">日付</label>
+            <input class="field-input" type="date" id="m_date">
+          </div>
+          <div class="field-group">
+            <label class="field-label">借方科目</label>
+            <select class="field-input" id="m_category">
+              <option>旅費交通費</option><option>車両費</option><option>接待交際費</option>
+              <option>消耗品費</option><option>通信費</option><option>地代家賃</option>
+              <option>損害保険料</option><option>会議・研修費</option><option>租税公課</option>
+              <option>修繕費</option><option>支払手数料</option><option>雑費</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">金額 (¥)</label>
+            <input class="field-input" type="number" id="m_amount" placeholder="0">
+          </div>
+          <div class="field-group full">
+            <label class="field-label">取引先</label>
+            <input class="field-input" type="text" id="m_vendor" placeholder="店舗・取引先名">
+          </div>
+          <div class="field-group full">
+            <label class="field-label">内容</label>
+            <input class="field-input" type="text" id="m_detail" placeholder="品目・用途">
+          </div>
+        </div>
+        <button class="register-btn" style="margin:12px 0 0; width:100%;" onclick="registerManual()">登録</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIST TAB -->
+  <div id="tab-list" class="tab-panel">
+    <div class="table-controls">
+      <select class="month-select" id="filterMonth" onchange="renderTable()">
+        <option value="">すべての月</option>
+        <option value="1">1月</option><option value="2">2月</option>
+        <option value="3">3月</option><option value="4">4月</option>
+        <option value="5">5月</option><option value="6">6月</option>
+        <option value="7">7月</option><option value="8">8月</option>
+        <option value="9">9月</option><option value="10">10月</option>
+        <option value="11">11月</option><option value="12">12月</option>
+      </select>
+      <input class="search-input" type="text" id="searchInput" placeholder="取引先・内容で検索..." oninput="renderTable()">
+      <button class="export-btn" onclick="exportToExcel()">⬇ Excelへ書き出し</button>
+    </div>
+
+    <div class="expense-table-wrap">
+      <table class="expense-table">
+        <thead>
+          <tr>
+            <th>日付</th>
+            <th>科目</th>
+            <th style="text-align:right">金額</th>
+            <th>取引先・内容</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SUMMARY TAB -->
+  <div id="tab-summary" class="tab-panel">
+    <div class="summary-grid" id="summaryCards"></div>
+    <div class="breakdown-table-wrap">
+      <table class="breakdown-table" id="breakdownTable">
+        <thead>
+          <tr>
+            <th>借方科目</th>
+            <th>件数</th>
+            <th>構成比</th>
+            <th style="text-align:right">合計金額</th>
+          </tr>
+        </thead>
+        <tbody id="breakdownBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <p class="loading-text" id="loadingText">AIが解析中です...</p>
+  </div>
+</div>
+
+<script>
+// ── DATA STORE ──
+const YEAR_KEY = 'expenseYear';
+let currentYear = parseInt(localStorage.getItem(YEAR_KEY) || new Date().getFullYear());
+
+function storeKey(y) { return 'expenses_' + y + '_v2'; }
+let expenses = JSON.parse(localStorage.getItem(storeKey(currentYear)) || '[]');
+
+function initYear(y) {
+  currentYear = y;
+  localStorage.setItem(YEAR_KEY, y);
+  expenses = JSON.parse(localStorage.getItem(storeKey(y)) || '[]');
+  document.getElementById('yearBadge').textContent = y + '年';
+  document.title = '経費振り分けアプリ ' + y;
+}
+
+function openYearPicker() {
+  const grid = document.getElementById('yearGrid');
+  const thisYear = new Date().getFullYear();
+  grid.innerHTML = '';
+  for (let y = thisYear - 2; y <= thisYear + 2; y++) {
+    const btn = document.createElement('button');
+    btn.textContent = y + '年';
+    const active = y === currentYear;
+    btn.style.cssText = 'padding:8px 4px;border-radius:var(--radius-sm);font-size:13px;font-weight:' + (active?'700':'500') + ';cursor:pointer;font-family:inherit;background:' + (active?'var(--accent)':'var(--surface2)') + ';color:' + (active?'#fff':'var(--text)') + ';border:1px solid ' + (active?'var(--accent)':'var(--border)') + ';';
+    btn.onclick = () => selectYear(y);
+    grid.appendChild(btn);
+  }
+  document.getElementById('customYearInput').value = currentYear;
+  document.getElementById('yearModal').style.display = 'flex';
+}
+
+function selectYear(y) {
+  initYear(y);
+  closeYearPicker();
+  showToast(y + '年のデータに切り替えました');
+  const activeTab = document.querySelector('.tab-panel.active');
+  if (activeTab && activeTab.id === 'tab-list') renderTable();
+  if (activeTab && activeTab.id === 'tab-summary') renderSummary();
+}
+
+function applyCustomYear() {
+  const v = parseInt(document.getElementById('customYearInput').value);
+  if (v >= 2000 && v <= 2099) selectYear(v);
+  else showToast('2000〜2099の範囲で入力してください');
+}
+
+function closeYearPicker() {
+  document.getElementById('yearModal').style.display = 'none';
+}
+
+const CATEGORIES = [
+  '旅費交通費','車両費','接待交際費','消耗品費','通信費',
+  '地代家賃','損害保険料','会議・研修費','租税公課','修繕費','支払手数料','雑費'
+];
+
+function save() {
+  localStorage.setItem(storeKey(currentYear), JSON.stringify(expenses));
+}
+
+function catClass(cat) {
+  const map = {
+    '旅費交通費':'cat-旅費交通費','車両費':'cat-車両費','接待交際費':'cat-接待交際費',
+    '消耗品費':'cat-消耗品費','通信費':'cat-通信費','地代家賃':'cat-地代家賃',
+    '損害保険料':'cat-損害保険料','会議・研修費':'cat-会議研修費','租税公課':'cat-租税公課',
+    '修繕費':'cat-修繕費','支払手数料':'cat-支払手数料','雑費':'cat-雑費'
+  };
+  return map[cat] || 'cat-other';
+}
+
+function formatAmount(n) {
+  return '¥' + (n || 0).toLocaleString('ja-JP');
+}
+
+// ── TABS ──
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['scan','list','summary'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'list') renderTable();
+  if (name === 'summary') renderSummary();
+}
+
+// ── API KEY ──
+const API_KEY_STORAGE = 'anthropic_api_key';
+
+function getApiKey() {
+  return localStorage.getItem(API_KEY_STORAGE) || '';
+}
+
+function updateApiKeyBtn() {
+  const btn = document.getElementById('apiKeyBtn');
+  const key = getApiKey();
+  if (key) {
+    btn.textContent = '🔑 設定済み';
+    btn.style.color = 'var(--accent)';
+    btn.style.borderColor = 'var(--accent)';
+    const m = document.getElementById('uploadMain');
+    const s = document.getElementById('uploadSub');
+    const h = document.getElementById('pdfHint');
+    if(m) m.textContent = '写真・PDF を選択またはドロップ';
+    if(s) s.firstChild.textContent = 'JPG・PNG・HEIC・PDF 対応 / 複数同時OK';
+    if(h) h.textContent = '';
+  } else {
+    btn.textContent = '🔑 APIキー（任意）';
+    btn.style.color = 'var(--text2)';
+    btn.style.borderColor = 'var(--border2)';
+    const h = document.getElementById('pdfHint');
+    if(h) h.textContent = 'PDFはスクリーンショットして画像で読み込んでください';
+  }
+}
+
+function openApiKeyModal() {
+  const key = getApiKey();
+  document.getElementById('apiKeyInput').value = key ? '（保存済み）' : '';
+  document.getElementById('apiKeyInput').placeholder = key ? '新しいキーを入力して上書き' : 'sk-ant-...';
+  document.getElementById('apiKeyModal').style.display = 'flex';
+}
+
+function closeApiKeyModal() {
+  document.getElementById('apiKeyModal').style.display = 'none';
+}
+
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val || val === '（保存済み）') { closeApiKeyModal(); return; }
+  if (!val.startsWith('sk-')) { showToast('APIキーは sk- で始まる形式です'); return; }
+  localStorage.setItem(API_KEY_STORAGE, val);
+  updateApiKeyBtn();
+  closeApiKeyModal();
+  showToast('APIキーを保存しました ✓');
+}
+
+function clearApiKey() {
+  if (!confirm('APIキーを削除しますか？')) return;
+  localStorage.removeItem(API_KEY_STORAGE);
+  document.getElementById('apiKeyInput').value = '';
+  updateApiKeyBtn();
+  showToast('APIキーを削除しました');
+}
+
+document.getElementById('apiKeyModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('apiKeyModal')) closeApiKeyModal();
+});
+document.getElementById('apiKeyInput').addEventListener('focus', e => {
+  if (e.target.value === '（保存済み）') e.target.value = '';
+});
+
+
+const fileInput = document.getElementById('fileInput');
+fileInput.addEventListener('change', async e => {
+  const files = [...e.target.files];
+  if (!files.length) return;
+  for (const file of files) {
+    await processFile(file);
+  }
+  fileInput.value = '';
+});
+
+const dropzone = document.getElementById('dropzone');
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.style.background = 'var(--accent-light)'; });
+dropzone.addEventListener('dragleave', () => { dropzone.style.background = ''; });
+dropzone.addEventListener('drop', async e => {
+  e.preventDefault();
+  dropzone.style.background = '';
+  const files = [...e.dataTransfer.files];
+  for (const file of files) await processFile(file);
+});
+
+async function processFile(file) {
+  const isPDF = file.type === 'application/pdf';
+  const isImg = file.type.startsWith('image/');
+  if (!isPDF && !isImg) { showToast('対応していないファイル形式です'); return; }
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    if (isPDF) {
+      showToast('PDFはスクリーンショットして画像で読み込んでください');
+      return;
+    }
+    openApiKeyModal();
+    showToast('画像読み取りにはAPIキーが必要です');
+    return;
+  }
+
+  showLoading('AIが解析中...');
+
+  // Show preview for images
+  if (isImg) {
+    const url = URL.createObjectURL(file);
+    document.getElementById('previewImg').src = url;
+    document.getElementById('previewImgWrap').style.display = 'block';
+  } else {
+    document.getElementById('previewImgWrap').style.display = 'none';
+  }
+
+  try {
+    const base64 = await toBase64(file);
+    const mediaType = isPDF ? 'application/pdf' : file.type;
+
+    const systemPrompt = `あなたは経費精算AIです。領収書・レシートを解析して以下のJSONのみ返してください。前置き・コードブロック不要。
+{
+  "date": "YYYY-MM-DD",
+  "category": "旅費交通費|車両費|接待交際費|消耗品費|通信費|地代家賃|損害保険料|会議・研修費|租税公課|修繕費|支払手数料|雑費",
+  "amount": 1000,
+  "vendor": "取引先名",
+  "detail": "内容（簡潔に）"
+}
+カテゴリ判断の参考：交通機関・タクシー・駐車場→旅費交通費、ガソリン・ETC・車検→車両費、飲食打合せ・手土産→接待交際費、文具・消耗品・PC周辺→消耗品費、携帯・通信→通信費、駐車場月極→地代家賃、保険→損害保険料、書籍・研修→会議・研修費、税金・印紙→租税公課`;
+
+    const contentBlock = isPDF
+      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
+      : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } };
+
+    const headers = { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' };
+    if (isPDF) headers['anthropic-beta'] = 'pdfs-2024-09-25';
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{
+          role: 'user',
+          content: [
+            contentBlock,
+            { type: 'text', text: 'この領収書を解析してください。' }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content.map(b => b.text || '').join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    fillScanForm(parsed, file.name);
+  } catch (err) {
+    console.error(err);
+    fillScanForm({}, file.name);
+    showToast('解析に失敗しました。手動で入力してください。');
+  } finally {
+    hideLoading();
+  }
+}
+
+function fillScanForm(data, filename) {
+  if (data.date) {
+    document.getElementById('f_date').value = data.date;
+    const m = parseInt(data.date.split('-')[1]);
+    document.getElementById('f_month').value = m;
+  } else {
+    const now = new Date();
+    document.getElementById('f_date').value = now.toISOString().split('T')[0];
+    document.getElementById('f_month').value = now.getMonth() + 1;
+  }
+  if (data.category) {
+    const sel = document.getElementById('f_category');
+    for (let i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === data.category) { sel.selectedIndex = i; break; }
+    }
+  }
+  document.getElementById('f_amount').value = data.amount || '';
+  document.getElementById('f_vendor').value = data.vendor || '';
+  document.getElementById('f_detail').value = data.detail || '';
+  document.getElementById('resultTitle').textContent = filename ? `読み取り結果：${filename}` : '読み取り結果';
+  document.getElementById('resultCard').classList.add('show');
+  document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function registerEntry() {
+  const date = document.getElementById('f_date').value;
+  const month = parseInt(document.getElementById('f_month').value);
+  const category = document.getElementById('f_category').value;
+  const amount = parseInt(document.getElementById('f_amount').value) || 0;
+  const vendor = document.getElementById('f_vendor').value;
+  const detail = document.getElementById('f_detail').value;
+
+  if (!date || !amount) { showToast('日付と金額は必須です'); return; }
+
+  expenses.push({ id: Date.now(), date, month, category, amount, vendor, detail });
+  save();
+  document.getElementById('resultCard').classList.remove('show');
+  document.getElementById('previewImgWrap').style.display = 'none';
+  showToast('登録しました ✓');
+}
+
+function registerManual() {
+  const date = document.getElementById('m_date').value;
+  const month = date ? parseInt(date.split('-')[1]) : new Date().getMonth() + 1;
+  const category = document.getElementById('m_category').value;
+  const amount = parseInt(document.getElementById('m_amount').value) || 0;
+  const vendor = document.getElementById('m_vendor').value;
+  const detail = document.getElementById('m_detail').value;
+
+  if (!amount) { showToast('金額を入力してください'); return; }
+
+  expenses.push({ id: Date.now(), date: date || new Date().toISOString().split('T')[0], month, category, amount, vendor, detail });
+  save();
+  document.getElementById('m_date').value = '';
+  document.getElementById('m_amount').value = '';
+  document.getElementById('m_vendor').value = '';
+  document.getElementById('m_detail').value = '';
+  showToast('登録しました ✓');
+}
+
+// ── TABLE ──
+function renderTable() {
+  const monthFilter = document.getElementById('filterMonth').value;
+  const search = document.getElementById('searchInput').value.trim().toLowerCase();
+
+  let filtered = expenses.filter(e => {
+    if (monthFilter && e.month !== parseInt(monthFilter)) return false;
+    if (search && !((e.vendor || '').toLowerCase().includes(search) || (e.detail || '').toLowerCase().includes(search) || (e.category || '').toLowerCase().includes(search))) return false;
+    return true;
+  });
+
+  filtered.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+  const tbody = document.getElementById('tableBody');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">データがありません</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(e => `
+    <tr>
+      <td style="white-space:nowrap;color:var(--text2);font-size:12px;">${formatDate(e.date)}</td>
+      <td><span class="cat-badge ${catClass(e.category)}">${e.category}</span></td>
+      <td class="amount-cell">${formatAmount(e.amount)}</td>
+      <td style="color:var(--text2);font-size:12px;">
+        <div style="font-weight:500;color:var(--text);font-size:13px;">${e.vendor || '-'}</div>
+        <div>${e.detail || ''}</div>
+      </td>
+      <td><button class="del-btn" onclick="deleteEntry(${e.id})">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+function formatDate(d) {
+  if (!d) return '-';
+  const parts = d.split('-');
+  return `${parts[1]}/${parts[2]}`;
+}
+
+function deleteEntry(id) {
+  if (!confirm('削除しますか？')) return;
+  expenses = expenses.filter(e => e.id !== id);
+  save();
+  renderTable();
+  showToast('削除しました');
+}
+
+// ── SUMMARY ──
+function renderSummary() {
+  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  const count = expenses.length;
+  const months = [...new Set(expenses.map(e => e.month))].length;
+
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="summary-card">
+      <div class="summary-card-label">年間合計</div>
+      <div class="summary-card-amount">${formatAmount(total)}</div>
+      <div class="summary-card-sub">${count}件</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-label">月平均</div>
+      <div class="summary-card-amount">${months ? formatAmount(Math.round(total / months)) : '¥0'}</div>
+      <div class="summary-card-sub">${months}ヶ月分</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-label">最大月</div>
+      <div class="summary-card-amount">${getMaxMonth()}</div>
+      <div class="summary-card-sub">最も多かった月</div>
+    </div>
+  `;
+
+  // Category breakdown
+  const byCategory = {};
+  CATEGORIES.forEach(c => byCategory[c] = { count: 0, amount: 0 });
+  expenses.forEach(e => {
+    const cat = e.category || 'その他';
+    if (!byCategory[cat]) byCategory[cat] = { count: 0, amount: 0 };
+    byCategory[cat].count++;
+    byCategory[cat].amount += e.amount;
+  });
+
+  const sorted = Object.entries(byCategory).filter(([,v]) => v.amount > 0).sort((a, b) => b[1].amount - a[1].amount);
+  const maxAmt = sorted[0]?.[1].amount || 1;
+
+  const tbody = document.getElementById('breakdownBody');
+  tbody.innerHTML = sorted.map(([cat, data]) => `
+    <tr>
+      <td><span class="cat-badge ${catClass(cat)}">${cat}</span></td>
+      <td style="color:var(--text2)">${data.count}件</td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-bg"><div class="bar-fill" style="width:${Math.round(data.amount/total*100)}%"></div></div>
+          <span style="font-size:11px;color:var(--text2);min-width:32px">${Math.round(data.amount/total*100)}%</span>
+        </div>
+      </td>
+      <td>${formatAmount(data.amount)}</td>
+    </tr>
+  `).join('') + `<tr><td colspan="3" style="color:var(--text2)">合計</td><td>${formatAmount(total)}</td></tr>`;
+}
+
+function getMaxMonth() {
+  const byMonth = {};
+  expenses.forEach(e => {
+    byMonth[e.month] = (byMonth[e.month] || 0) + e.amount;
+  });
+  const max = Object.entries(byMonth).sort((a, b) => b[1] - a[1])[0];
+  return max ? `${max[0]}月` : '-';
+}
+
+// ── EXCEL EXPORT ──
+function exportToExcel() {
+  if (!expenses.length) { showToast('データがありません'); return; }
+  showLoading('Excelを生成中...');
+
+  try {
+    const wb = XLSX.utils.book_new();
+    const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+    const catList = CATEGORIES;
+
+    months.forEach((mName, mi) => {
+      const m = mi + 1;
+      const mExpenses = expenses.filter(e => e.month === m).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      const wsData = [
+        [null, '日付', '借方科目', '金　額', '取引先', '内　　容'],
+      ];
+
+      // category totals (right side columns)
+      const catTotals = {};
+      catList.forEach(c => {
+        catTotals[c] = mExpenses.filter(e => e.category === c).reduce((s, e) => s + e.amount, 0);
+      });
+
+      mExpenses.forEach((e, i) => {
+        const row = [
+          i + 1,
+          e.date ? new Date(e.date) : null,
+          e.category,
+          e.amount,
+          e.vendor || '',
+          e.detail || '',
+          null,
+        ];
+        if (i === 0) {
+          row.push('旅費交通費', catTotals['旅費交通費']);
+        } else if (i === 1) {
+          row.push('車両費', catTotals['車両費']);
+        } else if (i === 2) {
+          row.push('消耗品費', catTotals['消耗品費']);
+        } else if (i === 3) {
+          row.push('接待交際費', catTotals['接待交際費']);
+        } else if (i === 4) {
+          row.push('通信費', catTotals['通信費']);
+        } else if (i === 5) {
+          row.push('地代家賃', catTotals['地代家賃']);
+        } else if (i === 6) {
+          row.push('損害保険料', catTotals['損害保険料']);
+        } else if (i === 7) {
+          row.push('会議・研修費', catTotals['会議・研修費']);
+        } else if (i === 8) {
+          row.push('租税公課', catTotals['租税公課']);
+        } else if (i === 9) {
+          row.push('修繕費', catTotals['修繕費']);
+        } else if (i === 10) {
+          row.push('支払手数料', catTotals['支払手数料']);
+        } else if (i === 11) {
+          row.push('雑費', catTotals['雑費']);
+        } else if (i === 12) {
+          const total = mExpenses.reduce((s, e) => s + e.amount, 0);
+          row.push('計', total);
+        }
+        wsData.push(row);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!cols'] = [
+        { wch: 4 }, { wch: 12 }, { wch: 12 }, { wch: 10 },
+        { wch: 20 }, { wch: 24 }, { wch: 2 }, { wch: 12 }, { wch: 10 }
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, mName);
+    });
+
+    // Sheet1: yearly summary
+    const summaryData = [
+      [null, null, '1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月','合計'],
+    ];
+    catList.forEach(cat => {
+      const row = [null, cat];
+      let total = 0;
+      for (let m = 1; m <= 12; m++) {
+        const v = expenses.filter(e => e.month === m && e.category === cat).reduce((s, e) => s + e.amount, 0);
+        row.push(v || 0);
+        total += v;
+      }
+      row.push(total);
+      summaryData.push(row);
+    });
+
+    const totalRow = [null, null];
+    for (let m = 1; m <= 12; m++) {
+      totalRow.push(expenses.filter(e => e.month === m).reduce((s, e) => s + e.amount, 0));
+    }
+    totalRow.push(expenses.reduce((s, e) => s + e.amount, 0));
+    summaryData.push(totalRow);
+
+    const wsSum = XLSX.utils.aoa_to_sheet(summaryData);
+    wsSum['!cols'] = [{ wch: 2 }, { wch: 12 }, ...Array(13).fill({ wch: 10 })];
+    XLSX.utils.book_append_sheet(wb, wsSum, 'Sheet1');
+
+    XLSX.writeFile(wb, `経費まとめ_${currentYear}年分.xlsx`);
+    showToast('Excelを書き出しました ✓');
+  } catch(err) {
+    console.error(err);
+    showToast('書き出しに失敗しました');
+  } finally {
+    hideLoading();
+  }
+}
+
+// ── UTILITIES ──
+function toBase64(file) {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = e => res(e.target.result.split(',')[1]);
+    reader.onerror = rej;
+    reader.readAsDataURL(file);
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function showLoading(msg) {
+  document.getElementById('loadingText').textContent = msg || 'しばらくお待ちください...';
+  document.getElementById('loadingOverlay').classList.add('show');
+}
+
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.remove('show');
+}
+
+
+// ── PRELOAD EXCEL DATA ──
+(function() {
+  const key24 = storeKey(2024);
+  const key25 = storeKey(2025);
+  if (!localStorage.getItem(key24)) {
+    localStorage.setItem(key24, JSON.stringify([{"id": 1000000, "date": "2024-12-01", "month": 12, "category": "接待交際費", "amount": 1970, "vendor": "Wonder Smile", "detail": "打合せ（小池さん）"}, {"id": 1000001, "date": "2024-12-02", "month": 12, "category": "車両費", "amount": 4106, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000002, "date": "2024-12-05", "month": 12, "category": "接待交際費", "amount": 3124, "vendor": "H＆F BELX", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000003, "date": "2024-12-05", "month": 12, "category": "接待交際費", "amount": 1851, "vendor": "北野エース", "detail": "手土産代（シェアコネクト）"}, {"id": 1000004, "date": "2024-12-06", "month": 12, "category": "旅費交通費", "amount": 500, "vendor": "三菱地所パークス", "detail": "駐車場代"}, {"id": 1000005, "date": "2024-12-07", "month": 12, "category": "接待交際費", "amount": 8124, "vendor": "にぎりの長次郎", "detail": "打合せ（小池さん）"}, {"id": 1000006, "date": "2024-12-07", "month": 12, "category": "接待交際費", "amount": 2754, "vendor": "GRANY", "detail": "手土産代（シェアコネクト）"}, {"id": 1000007, "date": "2024-12-07", "month": 12, "category": "消耗品費", "amount": 6600, "vendor": "東急ハンズ", "detail": "掃除道具"}, {"id": 1000008, "date": "2024-12-07", "month": 12, "category": "旅費交通費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000009, "date": "2024-12-07", "month": 12, "category": "旅費交通費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000010, "date": "2024-12-10", "month": 12, "category": "旅費交通費", "amount": 2340, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000011, "date": "2024-12-10", "month": 12, "category": "旅費交通費", "amount": 1200, "vendor": "リパーク金山4丁目第2", "detail": "駐車場代"}, {"id": 1000012, "date": "2024-12-10", "month": 12, "category": "車両費", "amount": 2821, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000013, "date": "2024-12-11", "month": 12, "category": "接待交際費", "amount": 1240, "vendor": "JR名古屋高島屋", "detail": "手土産代（清新）"}, {"id": 1000014, "date": "2024-12-12", "month": 12, "category": "旅費交通費", "amount": 700, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 1000015, "date": "2024-12-12", "month": 12, "category": "接待交際費", "amount": 7700, "vendor": "山樹", "detail": "打合せ（シェアコネクト）"}, {"id": 1000016, "date": "2024-12-13", "month": 12, "category": "接待交際費", "amount": 4300, "vendor": "高島屋", "detail": "お歳暮（清新）"}, {"id": 1000017, "date": "2024-12-15", "month": 12, "category": "接待交際費", "amount": 3720, "vendor": "スシロー", "detail": "打合せ（小池さん）"}, {"id": 1000018, "date": "2024-12-17", "month": 12, "category": "接待交際費", "amount": 3500, "vendor": "ぴち天", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000019, "date": "2024-12-17", "month": 12, "category": "旅費交通費", "amount": 900, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 1000020, "date": "2024-12-18", "month": 12, "category": "接待交際費", "amount": 678, "vendor": "ローソン", "detail": "手土産代（シェアコネクト）"}, {"id": 1000021, "date": "2024-12-18", "month": 12, "category": "旅費交通費", "amount": 740, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000022, "date": "2024-12-19", "month": 12, "category": "旅費交通費", "amount": 800, "vendor": "リパーク金山4丁目第2", "detail": "駐車場代"}, {"id": 1000023, "date": "2024-12-20", "month": 12, "category": "車両費", "amount": 3762, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000024, "date": "2024-12-20", "month": 12, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 1000025, "date": "2024-12-21", "month": 12, "category": "旅費交通費", "amount": 400, "vendor": "リパーク上社2丁目第3", "detail": "駐車場代"}, {"id": 1000026, "date": "2024-12-21", "month": 12, "category": "旅費交通費", "amount": 950, "vendor": "カナレタクシー", "detail": "タクシー代"}, {"id": 1000027, "date": "2024-12-23", "month": 12, "category": "旅費交通費", "amount": 3000, "vendor": "名古屋鉄道株式会社", "detail": "マナカチャージ"}, {"id": 1000028, "date": "2024-12-24", "month": 12, "category": "旅費交通費", "amount": 950, "vendor": "岩間交通", "detail": "タクシー代"}, {"id": 1000029, "date": "2024-12-24", "month": 12, "category": "旅費交通費", "amount": 900, "vendor": "名鉄協商P藤が丘北第3", "detail": "駐車場代"}, {"id": 1000030, "date": "2024-12-24", "month": 12, "category": "接待交際費", "amount": 2990, "vendor": "ソバキチ", "detail": "打合せ（小池さん）"}, {"id": 1000031, "date": "2024-12-25", "month": 12, "category": "接待交際費", "amount": 7400, "vendor": "おおぞね鮨", "detail": "打合せ（小池さん）"}, {"id": 1000032, "date": "2024-12-26", "month": 12, "category": "消耗品費", "amount": 7876, "vendor": "清水屋", "detail": "イス"}, {"id": 1000033, "date": "2024-12-26", "month": 12, "category": "消耗品費", "amount": 3129, "vendor": "ニトリ", "detail": "スリッパ"}, {"id": 1000034, "date": "2024-12-31", "month": 12, "category": "通信費", "amount": 15830, "vendor": "ドコモ", "detail": "携帯代"}, {"id": 1000035, "date": "2024-11-01", "month": 11, "category": "旅費交通費", "amount": 400, "vendor": "パーク名駅2", "detail": "駐車場代"}, {"id": 1000036, "date": "2024-11-02", "month": 11, "category": "車両費", "amount": 1733, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000037, "date": "2024-11-03", "month": 11, "category": "接待交際費", "amount": 4044, "vendor": "GRANY", "detail": "手土産代（シェアコネクト）"}, {"id": 1000038, "date": "2024-11-03", "month": 11, "category": "消耗品費", "amount": 658, "vendor": "ダイソー", "detail": "収納袋等"}, {"id": 1000039, "date": "2024-11-03", "month": 11, "category": "旅費交通費", "amount": 1600, "vendor": "タイムズ24", "detail": "駐車場代"}, {"id": 1000040, "date": "2024-11-03", "month": 11, "category": "接待交際費", "amount": 4078, "vendor": "amico", "detail": "打合せ（小池さん）"}, {"id": 1000041, "date": "2024-11-04", "month": 11, "category": "消耗品費", "amount": 1098, "vendor": "ダイソー", "detail": "文具"}, {"id": 1000042, "date": "2024-11-04", "month": 11, "category": "消耗品費", "amount": 1490, "vendor": "ニトリ", "detail": "ゴミ箱"}, {"id": 1000043, "date": "2024-11-04", "month": 11, "category": "消耗品費", "amount": 882, "vendor": "無印良品", "detail": "ハサミ、ケース"}, {"id": 1000044, "date": "2024-11-04", "month": 11, "category": "旅費交通費", "amount": 5000, "vendor": "名古屋鉄道株式会社", "detail": "マナカチャージ"}, {"id": 1000045, "date": "2024-11-07", "month": 11, "category": "旅費交通費", "amount": 860, "vendor": "三晃タクシー", "detail": "タクシー代"}, {"id": 1000046, "date": "2024-11-09", "month": 11, "category": "接待交際費", "amount": 480, "vendor": "名鉄百貨店", "detail": "手土産代（清新）"}, {"id": 1000047, "date": "2024-11-09", "month": 11, "category": "接待交際費", "amount": 939, "vendor": "名鉄百貨店", "detail": "手土産代（清新）"}, {"id": 1000048, "date": "2024-11-10", "month": 11, "category": "消耗品費", "amount": 7762, "vendor": "ロイヤルホームセンター", "detail": "掃除道具"}, {"id": 1000049, "date": "2024-11-10", "month": 11, "category": "接待交際費", "amount": 3036, "vendor": "VEGEGO", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000050, "date": "2024-11-12", "month": 11, "category": "旅費交通費", "amount": 1000, "vendor": "エイブルパーキング金山4丁目", "detail": "駐車場代"}, {"id": 1000051, "date": "2024-11-12", "month": 11, "category": "接待交際費", "amount": 1200, "vendor": "カフェドクリエ", "detail": "打合せ（小池さん）"}, {"id": 1000052, "date": "2024-11-12", "month": 11, "category": "接待交際費", "amount": 3500, "vendor": "えびすや", "detail": "打合せ（小池さん）"}, {"id": 1000053, "date": "2024-11-19", "month": 11, "category": "車両費", "amount": 3740, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000054, "date": "2024-11-20", "month": 11, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 1000055, "date": "2024-11-23", "month": 11, "category": "旅費交通費", "amount": 700, "vendor": "名鉄協商P藤が丘北第2", "detail": "駐車場代"}, {"id": 1000056, "date": "2024-11-27", "month": 11, "category": "旅費交通費", "amount": 600, "vendor": "大和ハウスパーキング", "detail": "駐車場代"}, {"id": 1000057, "date": "2024-11-29", "month": 11, "category": "旅費交通費", "amount": 3000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 1000058, "date": "2024-11-30", "month": 11, "category": "通信費", "amount": 15822, "vendor": "ドコモ", "detail": "携帯代"}, {"id": 1000059, "date": "2024-10-01", "month": 10, "category": "旅費交通費", "amount": 900, "vendor": "パラカ", "detail": "駐車場代"}, {"id": 1000060, "date": "2024-10-01", "month": 10, "category": "旅費交通費", "amount": 490, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000061, "date": "2024-10-03", "month": 10, "category": "接待交際費", "amount": 1875, "vendor": "株式会社ことこと屋", "detail": "打合せ（小池さん）"}, {"id": 1000062, "date": "2024-10-04", "month": 10, "category": "旅費交通費", "amount": 2000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 1000063, "date": "2024-10-04", "month": 10, "category": "接待交際費", "amount": 10208, "vendor": "炉端ヒトイキ", "detail": "打合せ（シェアコネクト）"}, {"id": 1000064, "date": "2024-10-12", "month": 10, "category": "車両費", "amount": 3391, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000065, "date": "2024-10-12", "month": 10, "category": "旅費交通費", "amount": 3000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 1000066, "date": "2024-10-13", "month": 10, "category": "旅費交通費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000067, "date": "2024-10-13", "month": 10, "category": "旅費交通費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000068, "date": "2024-10-13", "month": 10, "category": "旅費交通費", "amount": 430, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000069, "date": "2024-10-16", "month": 10, "category": "接待交際費", "amount": 3333, "vendor": "寿司丸忠", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000070, "date": "2024-10-17", "month": 10, "category": "消耗品費", "amount": 330, "vendor": "ダイソー", "detail": "クリップ"}, {"id": 1000071, "date": "2024-10-19", "month": 10, "category": "接待交際費", "amount": 4136, "vendor": "天ぷらとワイン小島", "detail": "打合せ（小池さん）"}, {"id": 1000072, "date": "2024-10-20", "month": 10, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 1000073, "date": "2024-10-22", "month": 10, "category": "旅費交通費", "amount": 1200, "vendor": "リパーク金山4丁目第2", "detail": "駐車場代"}, {"id": 1000074, "date": "2024-10-22", "month": 10, "category": "消耗品費", "amount": 3042, "vendor": "スマホメモリ専門スターフォーカス", "detail": "SDカードリーダー"}, {"id": 1000075, "date": "2024-10-22", "month": 10, "category": "消耗品費", "amount": 1890, "vendor": "ノートパソコンPC周辺雑貨のLOE", "detail": "パソコン保護フィルム"}, {"id": 1000076, "date": "2024-10-24", "month": 10, "category": "旅費交通費", "amount": 910, "vendor": "木原タクシー", "detail": "タクシー代"}, {"id": 1000077, "date": "2024-10-24", "month": 10, "category": "接待交際費", "amount": 1450, "vendor": "アンジュール", "detail": "打合せ（小池さん）"}, {"id": 1000078, "date": "2024-10-24", "month": 10, "category": "接待交際費", "amount": 3718, "vendor": "華花", "detail": "打合せ（小池さん）"}, {"id": 1000079, "date": "2024-10-25", "month": 10, "category": "車両費", "amount": 4167, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000080, "date": "2024-10-29", "month": 10, "category": "旅費交通費", "amount": 630, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000081, "date": "2024-10-29", "month": 10, "category": "旅費交通費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000082, "date": "2024-10-30", "month": 10, "category": "旅費交通費", "amount": 400, "vendor": "パークリノベーション", "detail": "駐車場代"}, {"id": 1000083, "date": "2024-10-30", "month": 10, "category": "消耗品費", "amount": 1341, "vendor": "無印良品", "detail": "収納ケース"}, {"id": 1000084, "date": "2024-10-31", "month": 10, "category": "旅費交通費", "amount": 540, "vendor": "名城公園二の丸東駐車場", "detail": "駐車場代"}, {"id": 1000085, "date": "2024-10-31", "month": 10, "category": "通信費", "amount": 15690, "vendor": "ドコモ", "detail": "携帯代"}, {"id": 1000086, "date": "2024-09-02", "month": 9, "category": "接待交際費", "amount": 2871, "vendor": "寿司丸忠", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000087, "date": "2024-09-03", "month": 9, "category": "旅費交通費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000088, "date": "2024-09-03", "month": 9, "category": "旅費交通費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000089, "date": "2024-09-03", "month": 9, "category": "旅費交通費", "amount": 1100, "vendor": "パラカ", "detail": "駐車場代"}, {"id": 1000090, "date": "2024-09-04", "month": 9, "category": "接待交際費", "amount": 4300, "vendor": "グリルまどか", "detail": "打合せ（小池さん）"}, {"id": 1000091, "date": "2024-09-07", "month": 9, "category": "接待交際費", "amount": 1428, "vendor": "株式会社ナクナ", "detail": "手土産代（シェアコネクト）"}, {"id": 1000092, "date": "2024-09-07", "month": 9, "category": "旅費交通費", "amount": 3000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 1000093, "date": "2024-09-10", "month": 9, "category": "旅費交通費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000094, "date": "2024-09-10", "month": 9, "category": "旅費交通費", "amount": 630, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000095, "date": "2024-09-10", "month": 9, "category": "旅費交通費", "amount": 620, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000096, "date": "2024-09-18", "month": 9, "category": "車両費", "amount": 2370, "vendor": "株式会社趣味職人", "detail": "車サンシェード"}, {"id": 1000097, "date": "2024-09-18", "month": 9, "category": "接待交際費", "amount": 4830, "vendor": "のの屋", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000098, "date": "2024-09-19", "month": 9, "category": "旅費交通費", "amount": 900, "vendor": "名鉄協商P藤が丘北第3", "detail": "駐車場代"}, {"id": 1000099, "date": "2024-09-19", "month": 9, "category": "消耗品費", "amount": 1690, "vendor": "Amazon", "detail": "USB-C＆ライトニングケーブル"}, {"id": 1000100, "date": "2024-09-20", "month": 9, "category": "車両費", "amount": 3781, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000101, "date": "2024-09-20", "month": 9, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 1000102, "date": "2024-09-21", "month": 9, "category": "接待交際費", "amount": 5605, "vendor": "にぎりの長次郎", "detail": "打合せ（小池さん）"}, {"id": 1000103, "date": "2024-09-28", "month": 9, "category": "旅費交通費", "amount": 1220, "vendor": "宝交通", "detail": "タクシー代"}, {"id": 1000104, "date": "2024-09-29", "month": 9, "category": "接待交際費", "amount": 2134, "vendor": "むさしの森珈琲", "detail": "打合せ（小池さん）"}, {"id": 1000105, "date": "2024-08-03", "month": 8, "category": "車両費", "amount": 2372, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000106, "date": "2024-08-05", "month": 8, "category": "接待交際費", "amount": 4440, "vendor": "高島屋", "detail": "お中元（清新）"}, {"id": 1000107, "date": "2024-08-06", "month": 8, "category": "接待交際費", "amount": 1040, "vendor": "ザ・どん", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000108, "date": "2024-08-08", "month": 8, "category": "接待交際費", "amount": 4050, "vendor": "ひらのや", "detail": "打合せ（小池さん）"}, {"id": 1000109, "date": "2024-08-08", "month": 8, "category": "接待交際費", "amount": 1800, "vendor": "シャトレーゼ", "detail": "手土産代（シェアコネクト）"}, {"id": 1000110, "date": "2024-08-08", "month": 8, "category": "旅費交通費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000111, "date": "2024-08-08", "month": 8, "category": "旅費交通費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000112, "date": "2024-08-09", "month": 8, "category": "消耗品費", "amount": 3300, "vendor": "東急ハンズ", "detail": "収納ボックス"}, {"id": 1000113, "date": "2024-08-09", "month": 8, "category": "消耗品費", "amount": 3300, "vendor": "東急ハンズ", "detail": "収納ボックス"}, {"id": 1000114, "date": "2024-08-13", "month": 8, "category": "旅費交通費", "amount": 5000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 1000115, "date": "2024-08-13", "month": 8, "category": "旅費交通費", "amount": 700, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 1000116, "date": "2024-08-13", "month": 8, "category": "接待交際費", "amount": 1350, "vendor": "サイゼリヤ", "detail": "打合せ（小池さん）"}, {"id": 1000117, "date": "2024-08-16", "month": 8, "category": "旅費交通費", "amount": 2000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 1000118, "date": "2024-08-17", "month": 8, "category": "車両費", "amount": 4380, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000119, "date": "2024-08-18", "month": 8, "category": "接待交際費", "amount": 1700, "vendor": "Nicetaime Mountain Gallery", "detail": "手土産代（シェアコネクト）"}, {"id": 1000120, "date": "2024-08-20", "month": 8, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 1000121, "date": "2024-08-21", "month": 8, "category": "旅費交通費", "amount": 1040, "vendor": "カナレタクシー", "detail": "タクシー代"}, {"id": 1000122, "date": "2024-08-22", "month": 8, "category": "旅費交通費", "amount": 950, "vendor": "カナレタクシー", "detail": "タクシー代"}, {"id": 1000123, "date": "2024-08-22", "month": 8, "category": "旅費交通費", "amount": 600, "vendor": "名鉄協商P今池1丁目", "detail": "駐車場代"}, {"id": 1000124, "date": "2024-08-22", "month": 8, "category": "接待交際費", "amount": 6150, "vendor": "昼だけうなぎ屋", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000125, "date": "2024-08-27", "month": 8, "category": "旅費交通費", "amount": 620, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000126, "date": "2024-08-27", "month": 8, "category": "旅費交通費", "amount": 800, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000127, "date": "2024-08-27", "month": 8, "category": "旅費交通費", "amount": 310, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000128, "date": "2024-08-27", "month": 8, "category": "接待交際費", "amount": 2900, "vendor": "スシロー", "detail": "打合せ（小池さん）"}, {"id": 1000129, "date": "2024-08-27", "month": 8, "category": "旅費交通費", "amount": 1100, "vendor": "リパーク金山4丁目第2", "detail": "駐車場代"}, {"id": 1000130, "date": "2024-08-30", "month": 8, "category": "旅費交通費", "amount": 3000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 1000131, "date": "2024-08-30", "month": 8, "category": "車両費", "amount": 3132, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000132, "date": "2024-07-03", "month": 7, "category": "接待交際費", "amount": 5000, "vendor": "のの屋", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000133, "date": "2024-07-08", "month": 7, "category": "旅費交通費", "amount": 860, "vendor": "双葉タクシー", "detail": "タクシー代"}, {"id": 1000134, "date": "2024-07-08", "month": 7, "category": "接待交際費", "amount": 1400, "vendor": "株式会社WESTWOOD", "detail": "手土産代（清新）"}, {"id": 1000135, "date": "2024-07-10", "month": 7, "category": "接待交際費", "amount": 3553, "vendor": "寿司丸忠", "detail": "打合せ（小池さん）"}, {"id": 1000136, "date": "2024-07-10", "month": 7, "category": "車両費", "amount": 3946, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000137, "date": "2024-07-10", "month": 7, "category": "旅費交通費", "amount": 1000, "vendor": "名古屋鉄道株式会社", "detail": "マナカチャージ"}, {"id": 1000138, "date": "2024-07-11", "month": 7, "category": "接待交際費", "amount": 1067, "vendor": "ミスタードーナツ", "detail": "手土産代（シェアコネクト）"}, {"id": 1000139, "date": "2024-07-14", "month": 7, "category": "消耗品費", "amount": 7698, "vendor": "無印良品", "detail": "筆記用具等"}, {"id": 1000140, "date": "2024-07-14", "month": 7, "category": "接待交際費", "amount": 4840, "vendor": "日本料理 満つ谷", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000141, "date": "2024-07-14", "month": 7, "category": "接待交際費", "amount": 1603, "vendor": "名古屋三越", "detail": "手土産代（清新）"}, {"id": 1000142, "date": "2024-07-17", "month": 7, "category": "旅費交通費", "amount": 620, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000143, "date": "2024-07-20", "month": 7, "category": "消耗品費", "amount": 1770, "vendor": "ビックカメラ名古屋駅西", "detail": "携帯保護フィルム"}, {"id": 1000144, "date": "2024-07-20", "month": 7, "category": "旅費交通費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000145, "date": "2024-07-20", "month": 7, "category": "旅費交通費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000146, "date": "2024-07-20", "month": 7, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 1000147, "date": "2024-07-21", "month": 7, "category": "旅費交通費", "amount": 220, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000148, "date": "2024-07-21", "month": 7, "category": "旅費交通費", "amount": 490, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000149, "date": "2024-07-21", "month": 7, "category": "旅費交通費", "amount": 110, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000150, "date": "2024-07-21", "month": 7, "category": "旅費交通費", "amount": 690, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000151, "date": "2024-07-22", "month": 7, "category": "車両費", "amount": 3207, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000152, "date": "2024-07-28", "month": 7, "category": "旅費交通費", "amount": 2000, "vendor": "JR東海", "detail": "マナカチャージ"}, {"id": 1000153, "date": "2024-07-30", "month": 7, "category": "接待交際費", "amount": 2948, "vendor": "上海湯包小館", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000154, "date": "2024-06-01", "month": 6, "category": "旅費交通費", "amount": 3000, "vendor": "名古屋市営地下鉄", "detail": "マナカチャージ"}, {"id": 1000155, "date": "2024-06-02", "month": 6, "category": "車両費", "amount": 3568, "vendor": "守山ガスステーション", "detail": "ガソリン代"}, {"id": 1000156, "date": "2024-06-03", "month": 6, "category": "旅費交通費", "amount": 600, "vendor": "大和ハウスパーキング", "detail": "駐車場代"}, {"id": 1000157, "date": "2024-06-04", "month": 6, "category": "旅費交通費", "amount": 630, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000158, "date": "2024-06-04", "month": 6, "category": "旅費交通費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000159, "date": "2024-06-06", "month": 6, "category": "接待交際費", "amount": 1320, "vendor": "Love2Sweets", "detail": "手土産代（清新）"}, {"id": 1000160, "date": "2024-06-09", "month": 6, "category": "旅費交通費", "amount": 990, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000161, "date": "2024-06-09", "month": 6, "category": "旅費交通費", "amount": 990, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000162, "date": "2024-06-11", "month": 6, "category": "接待交際費", "amount": 3114, "vendor": "にぎりの長次郎", "detail": "打合せ（小池さん）"}, {"id": 1000163, "date": "2024-06-13", "month": 6, "category": "修繕費", "amount": 19800, "vendor": "元気でんき", "detail": "電気工事代"}, {"id": 1000164, "date": "2024-06-13", "month": 6, "category": "消耗品費", "amount": 11879, "vendor": "楽天アンカー", "detail": "イヤホン"}, {"id": 1000165, "date": "2024-06-15", "month": 6, "category": "接待交際費", "amount": 3170, "vendor": "香嵐渓 一の谷", "detail": "打合せ（小池さん）"}, {"id": 1000166, "date": "2024-06-15", "month": 6, "category": "旅費交通費", "amount": 310, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000167, "date": "2024-06-15", "month": 6, "category": "旅費交通費", "amount": 310, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000168, "date": "2024-06-15", "month": 6, "category": "旅費交通費", "amount": 110, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000169, "date": "2024-06-15", "month": 6, "category": "旅費交通費", "amount": 110, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000170, "date": "2024-06-16", "month": 6, "category": "旅費交通費", "amount": 700, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 1000171, "date": "2024-06-17", "month": 6, "category": "旅費交通費", "amount": 860, "vendor": "恵交通", "detail": "タクシー代"}, {"id": 1000172, "date": "2024-06-20", "month": 6, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 1000173, "date": "2024-06-20", "month": 6, "category": "旅費交通費", "amount": 1100, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 1000174, "date": "2024-06-20", "month": 6, "category": "接待交際費", "amount": 755, "vendor": "Love2Sweets", "detail": "手土産代（清新）"}, {"id": 1000175, "date": "2024-06-20", "month": 6, "category": "接待交際費", "amount": 1760, "vendor": "パステル", "detail": "手土産代（清新）"}, {"id": 1000176, "date": "2024-06-22", "month": 6, "category": "旅費交通費", "amount": 3000, "vendor": "名古屋市営地下鉄", "detail": "マナカチャージ"}, {"id": 1000177, "date": "2024-06-24", "month": 6, "category": "車両費", "amount": 4590, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000178, "date": "2024-06-26", "month": 6, "category": "損害保険料", "amount": 25193, "vendor": "楽天損保", "detail": "自動車保険代"}, {"id": 1000179, "date": "2024-06-27", "month": 6, "category": "接待交際費", "amount": 4824, "vendor": "にぎりの長次郎", "detail": "打合せ（小池さん）"}, {"id": 1000180, "date": "2024-05-01", "month": 5, "category": "旅費交通費", "amount": 1400, "vendor": "GO株式会社", "detail": "タクシー代"}, {"id": 1000181, "date": "2024-05-01", "month": 5, "category": "旅費交通費", "amount": 1000, "vendor": "株式会社アシスト", "detail": "タクシー代"}, {"id": 1000182, "date": "2024-05-02", "month": 5, "category": "接待交際費", "amount": 734, "vendor": "華匠 禄兵衛", "detail": "手土産代（シェアコネクト）"}, {"id": 1000183, "date": "2024-05-02", "month": 5, "category": "接待交際費", "amount": 692, "vendor": "グランスタ東京", "detail": "手土産代（シェアコネクト）"}, {"id": 1000184, "date": "2024-05-02", "month": 5, "category": "接待交際費", "amount": 997, "vendor": "グランスタ東京", "detail": "手土産代（清新）"}, {"id": 1000185, "date": "2024-05-03", "month": 5, "category": "旅費交通費", "amount": 950, "vendor": "HIRO交通", "detail": "タクシー代"}, {"id": 1000186, "date": "2024-05-10", "month": 5, "category": "旅費交通費", "amount": 3000, "vendor": "名古屋市営地下鉄", "detail": "マナカチャージ"}, {"id": 1000187, "date": "2024-05-10", "month": 5, "category": "車両費", "amount": 3045, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000188, "date": "2024-05-12", "month": 5, "category": "旅費交通費", "amount": 620, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000189, "date": "2024-05-15", "month": 5, "category": "接待交際費", "amount": 6450, "vendor": "寿司と天ぷらとわたくし", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000190, "date": "2024-05-16", "month": 5, "category": "接待交際費", "amount": 6350, "vendor": "そば武山", "detail": "打合せ（小池さん）"}, {"id": 1000191, "date": "2024-05-16", "month": 5, "category": "旅費交通費", "amount": 800, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 1000192, "date": "2024-05-16", "month": 5, "category": "接待交際費", "amount": 900, "vendor": "Love2Sweets", "detail": "手土産代（清新）"}, {"id": 1000193, "date": "2024-05-20", "month": 5, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 1000194, "date": "2024-05-22", "month": 5, "category": "旅費交通費", "amount": 700, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 1000195, "date": "2024-05-22", "month": 5, "category": "接待交際費", "amount": 3250, "vendor": "山本屋本店", "detail": "打合せ（小池さん）"}, {"id": 1000196, "date": "2024-05-23", "month": 5, "category": "旅費交通費", "amount": 700, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 1000197, "date": "2024-05-23", "month": 5, "category": "接待交際費", "amount": 4000, "vendor": "田園dining＆café", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000198, "date": "2024-05-24", "month": 5, "category": "旅費交通費", "amount": 860, "vendor": "的場タクシー", "detail": "タクシー代"}, {"id": 1000199, "date": "2024-05-28", "month": 5, "category": "旅費交通費", "amount": 1000, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 1000200, "date": "2024-05-29", "month": 5, "category": "接待交際費", "amount": 1230, "vendor": "麺屋 聖", "detail": "打合せ（小池さん）"}, {"id": 1000201, "date": "2024-04-01", "month": 4, "category": "接待交際費", "amount": 3168, "vendor": "寿司丸忠", "detail": "打合せ(小池さん)"}, {"id": 1000202, "date": "2024-04-02", "month": 4, "category": "接待交際費", "amount": 4650, "vendor": "おとなのヒッコリー", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000203, "date": "2024-04-02", "month": 4, "category": "消耗品費", "amount": 300, "vendor": "無印良品", "detail": "蛍光ペン"}, {"id": 1000204, "date": "2024-04-04", "month": 4, "category": "旅費交通費", "amount": 800, "vendor": "リパーク藤が丘第2", "detail": "駐車場代"}, {"id": 1000205, "date": "2024-04-04", "month": 4, "category": "接待交際費", "amount": 3560, "vendor": "尾張三ぷん", "detail": "打合せ(小池さん)"}, {"id": 1000206, "date": "2024-04-07", "month": 4, "category": "消耗品費", "amount": 887, "vendor": "Amazon", "detail": "電卓"}, {"id": 1000207, "date": "2024-04-07", "month": 4, "category": "消耗品費", "amount": 1250, "vendor": "Amazon", "detail": "収納ケース"}, {"id": 1000208, "date": "2024-04-09", "month": 4, "category": "旅費交通費", "amount": 11500, "vendor": "JR東海", "detail": "新幹線代"}, {"id": 1000209, "date": "2024-04-15", "month": 4, "category": "車両費", "amount": 3046, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000210, "date": "2024-04-20", "month": 4, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 1000211, "date": "2024-04-23", "month": 4, "category": "接待交際費", "amount": 2607, "vendor": "寿司丸忠", "detail": "打合せ（清新 加藤さん）"}, {"id": 1000212, "date": "2024-04-30", "month": 4, "category": "旅費交通費", "amount": 5000, "vendor": "名古屋市営地下鉄", "detail": "マナカチャージ"}, {"id": 1000213, "date": "2024-03-02", "month": 3, "category": "車両費", "amount": 4399, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000214, "date": "2024-03-02", "month": 3, "category": "旅費交通費", "amount": 11500, "vendor": "JR東海", "detail": "新幹線代"}, {"id": 1000215, "date": "2024-03-03", "month": 3, "category": "接待交際費", "amount": 3600, "vendor": "石臼挽き蕎麦かん家", "detail": "打合せ(小池さん)"}, {"id": 1000216, "date": "2024-03-05", "month": 3, "category": "通信費", "amount": 365, "vendor": "伊神切手社", "detail": "レターパックライト"}, {"id": 1000217, "date": "2024-03-10", "month": 3, "category": "旅費交通費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000218, "date": "2024-03-10", "month": 3, "category": "旅費交通費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000219, "date": "2024-03-18", "month": 3, "category": "旅費交通費", "amount": 2000, "vendor": "名古屋市営地下鉄", "detail": "マナカチャージ"}, {"id": 1000220, "date": "2024-03-18", "month": 3, "category": "旅費交通費", "amount": 5000, "vendor": "名古屋市営地下鉄", "detail": "マナカチャージ"}, {"id": 1000221, "date": "2024-03-20", "month": 3, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 1000222, "date": "2024-03-22", "month": 3, "category": "車両費", "amount": 2917, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000223, "date": "2024-03-26", "month": 3, "category": "旅費交通費", "amount": 1100, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 1000224, "date": "2024-03-30", "month": 3, "category": "旅費交通費", "amount": 3000, "vendor": "名古屋市営地下鉄", "detail": "マナカチャージ"}, {"id": 1000225, "date": "2024-03-31", "month": 3, "category": "接待交際費", "amount": 1414, "vendor": "名鉄百貨店", "detail": "和菓子、手土産（シェアコネクト）"}, {"id": 1000226, "date": "2024-02-08", "month": 2, "category": "旅費交通費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000227, "date": "2024-02-08", "month": 2, "category": "旅費交通費", "amount": 1150, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000228, "date": "2024-02-08", "month": 2, "category": "旅費交通費", "amount": 970, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000229, "date": "2024-02-08", "month": 2, "category": "旅費交通費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000230, "date": "2024-02-08", "month": 2, "category": "旅費交通費", "amount": 610, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000231, "date": "2024-02-08", "month": 2, "category": "旅費交通費", "amount": 540, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 1000232, "date": "2024-02-09", "month": 2, "category": "車両費", "amount": 3421, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 1000233, "date": "2024-02-29", "month": 2, "category": "旅費交通費", "amount": 400, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 1000234, "date": "2024-01-28", "month": 1, "category": "車両費", "amount": 4622, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}]));
+  }
+  if (!localStorage.getItem(key25)) {
+    localStorage.setItem(key25, JSON.stringify([{"id": 2000000, "date": "2025-12-03", "month": 12, "category": "旅費交通費", "amount": 3000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 2000001, "date": "2025-12-03", "month": 12, "category": "旅費交通費", "amount": 900, "vendor": "カナレタクシー", "detail": "タクシー代"}, {"id": 2000002, "date": "2025-12-06", "month": 12, "category": "消耗品費", "amount": 3000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 2000003, "date": "2025-12-06", "month": 12, "category": "消耗品費", "amount": 11920, "vendor": "コルル", "detail": "シートシーター"}, {"id": 2000004, "date": "2025-12-06", "month": 12, "category": "消耗品費", "amount": 2187, "vendor": "Selectshop-one", "detail": "シートバックポケット"}, {"id": 2000005, "date": "2025-12-07", "month": 12, "category": "旅費交通費", "amount": 1100, "vendor": "パラカ株式会社", "detail": "駐車場代"}, {"id": 2000006, "date": "2025-12-07", "month": 12, "category": "車両費", "amount": 4787, "vendor": "守山ガスステーション", "detail": "ガソリン代"}, {"id": 2000007, "date": "2025-12-07", "month": 12, "category": "消耗品費", "amount": 3480, "vendor": "JAPAN AVE.", "detail": "シガーソケット"}, {"id": 2000008, "date": "2025-12-08", "month": 12, "category": "旅費交通費", "amount": 3000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 2000009, "date": "2025-12-12", "month": 12, "category": "消耗品費", "amount": 363, "vendor": "ファミリーマート長久手段之上店", "detail": "ボタン電池"}, {"id": 2000010, "date": "2025-12-12", "month": 12, "category": "車両費", "amount": 1492, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000011, "date": "2025-12-12", "month": 12, "category": "車両費", "amount": 25200, "vendor": "ETC(12月分)", "detail": "有料道路代"}, {"id": 2000012, "date": "2025-12-13", "month": 12, "category": "車両費", "amount": 2000, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000013, "date": "2025-12-14", "month": 12, "category": "旅費交通費", "amount": 1500, "vendor": "金城ふ頭駐車場", "detail": "駐車場代"}, {"id": 2000014, "date": "2025-12-14", "month": 12, "category": "接待交際費", "amount": 2700, "vendor": "京都勝牛", "detail": "打合せ弁当（シェアコネクト）"}, {"id": 2000015, "date": "2025-12-15", "month": 12, "category": "旅費交通費", "amount": 1100, "vendor": "二葉タクシー", "detail": "タクシー代"}, {"id": 2000016, "date": "2025-12-16", "month": 12, "category": "旅費交通費", "amount": 3000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 2000017, "date": "2025-12-17", "month": 12, "category": "接待交際費", "amount": 4939, "vendor": "高島屋", "detail": "お歳暮（清新）"}, {"id": 2000018, "date": "2025-12-18", "month": 12, "category": "接待交際費", "amount": 5510, "vendor": "藤一番", "detail": "打合せ（清新 加藤さん）"}, {"id": 2000019, "date": "2025-12-20", "month": 12, "category": "旅費交通費", "amount": 500, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 2000020, "date": "2025-12-20", "month": 12, "category": "旅費交通費", "amount": 1100, "vendor": "パラカ株式会社", "detail": "駐車場代"}, {"id": 2000021, "date": "2025-12-20", "month": 12, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 2000022, "date": "2025-12-20", "month": 12, "category": "車両費", "amount": 2800, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000023, "date": "2025-12-23", "month": 12, "category": "接待交際費", "amount": 4542, "vendor": "高島屋", "detail": "お歳暮（シェアコネクト）"}, {"id": 2000024, "date": "2025-12-25", "month": 12, "category": "旅費交通費", "amount": 400, "vendor": "パークリノベーション", "detail": "駐車場代"}, {"id": 2000025, "date": "2025-12-25", "month": 12, "category": "車両費", "amount": 2760, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000026, "date": "2025-12-25", "month": 12, "category": "車両費", "amount": 5555, "vendor": "門前自動車株式会社", "detail": "オイル交換"}, {"id": 2000027, "date": "2025-12-29", "month": 12, "category": "旅費交通費", "amount": 500, "vendor": "リパーク鳥居西通2丁目", "detail": "駐車場代"}, {"id": 2000028, "date": "2025-12-30", "month": 12, "category": "車両費", "amount": 4383, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000029, "date": "2025-12-30", "month": 12, "category": "接待交際費", "amount": 3856, "vendor": "小倉山荘", "detail": "お歳暮（小池さん）"}, {"id": 2000030, "date": "2025-12-31", "month": 12, "category": "通信費", "amount": 14719, "vendor": "ドコモ", "detail": "携帯代"}, {"id": 2000031, "date": "2025-11-02", "month": 11, "category": "車両費", "amount": 3514, "vendor": "守山ガスステーション", "detail": "ガソリン代"}, {"id": 2000032, "date": "2025-11-02", "month": 11, "category": "接待交際費", "amount": 2050, "vendor": "ケンタッキー", "detail": "打合せ（小池さん）"}, {"id": 2000033, "date": "2025-11-02", "month": 11, "category": "消耗品費", "amount": 1390, "vendor": "Amazon", "detail": "USB-Cケーブル"}, {"id": 2000034, "date": "2025-11-02", "month": 11, "category": "旅費交通費", "amount": 2200, "vendor": "パラカ株式会社", "detail": "ハサミ、ケース"}, {"id": 2000035, "date": "2025-11-05", "month": 11, "category": "旅費交通費", "amount": 2100, "vendor": "タクシーGO", "detail": "タクシー代"}, {"id": 2000036, "date": "2026-11-06", "month": 11, "category": "消耗品費", "amount": 766, "vendor": "ダイソー", "detail": "文具"}, {"id": 2000037, "date": "2026-11-19", "month": 11, "category": "旅費交通費", "amount": 600, "vendor": "OnePark金山駅東", "detail": "駐車場代"}, {"id": 2000038, "date": "2026-11-19", "month": 11, "category": "接待交際費", "amount": 3270, "vendor": "サガミ", "detail": "打合せ（清新 加藤さん）"}, {"id": 2000039, "date": "2026-11-20", "month": 11, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 2000040, "date": "2026-11-20", "month": 11, "category": "車両費", "amount": 2000, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000041, "date": "2026-11-20", "month": 11, "category": "旅費交通費", "amount": 900, "vendor": "名城公園二の丸東駐車場", "detail": "駐車場代"}, {"id": 2000042, "date": "2026-11-20", "month": 11, "category": "接待交際費", "amount": 4600, "vendor": "GARB CASTELLO", "detail": "打合せ（清新 加藤さん）"}, {"id": 2000043, "date": "2026-11-22", "month": 11, "category": "接待交際費", "amount": 1144, "vendor": "高島屋", "detail": "手土産代（清新）"}, {"id": 2000044, "date": "2026-11-22", "month": 11, "category": "接待交際費", "amount": 1296, "vendor": "高島屋", "detail": "手土産代（シェアコネクト）"}, {"id": 2000045, "date": "2026-11-24", "month": 11, "category": "接待交際費", "amount": 2116, "vendor": "スターバックスコーヒー", "detail": "打合せ（小池さん）"}, {"id": 2000046, "date": "2026-11-25", "month": 11, "category": "接待交際費", "amount": 4010, "vendor": "サガミ", "detail": "打合せ（清新 加藤さん）"}, {"id": 2000047, "date": "2026-11-25", "month": 11, "category": "車両費", "amount": 3020, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000048, "date": "2026-11-29", "month": 11, "category": "接待交際費", "amount": 16368, "vendor": "魚の和", "detail": "打合せ（シェアコネクト）"}, {"id": 2000049, "date": "2026-11-30", "month": 11, "category": "通信費", "amount": 15772, "vendor": "ドコモ", "detail": "携帯代"}, {"id": 2000050, "date": "2025-10-04", "month": 10, "category": "旅費交通費", "amount": 1040, "vendor": "カナレタクシー", "detail": "タクシー代"}, {"id": 2000051, "date": "2025-10-05", "month": 10, "category": "旅費交通費", "amount": 1520, "vendor": "タクシーGO", "detail": "タクシー代"}, {"id": 2000052, "date": "2025-10-05", "month": 10, "category": "旅費交通費", "amount": 540, "vendor": "名城公園正門前駐車場", "detail": "駐車場代"}, {"id": 2000053, "date": "2025-10-05", "month": 10, "category": "旅費交通費", "amount": 3000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 2000054, "date": "2025-10-05", "month": 10, "category": "接待交際費", "amount": 1620, "vendor": "松坂屋名古屋店", "detail": "シェアコネクト手土産代"}, {"id": 2000055, "date": "2025-10-05", "month": 10, "category": "旅費交通費", "amount": 1000, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 2000056, "date": "2025-10-09", "month": 10, "category": "消耗品費", "amount": 4287, "vendor": "Amazon", "detail": "USB-Cケーブル、コンセント"}, {"id": 2000057, "date": "2025-10-11", "month": 10, "category": "車両費", "amount": 8550, "vendor": "ETC(10月分)", "detail": "有料道路代"}, {"id": 2000058, "date": "2025-10-15", "month": 10, "category": "接待交際費", "amount": 2376, "vendor": "名鉄百貨店", "detail": "シェアコネクト手土産代"}, {"id": 2000059, "date": "2025-10-16", "month": 10, "category": "旅費交通費", "amount": 250, "vendor": "タイムズ星ヶ丘テラス駐車場", "detail": "駐車場代"}, {"id": 2000060, "date": "2025-10-16", "month": 10, "category": "接待交際費", "amount": 9790, "vendor": "魚の和", "detail": "打合せ（清新 加藤さん）"}, {"id": 2000061, "date": "2025-10-19", "month": 10, "category": "旅費交通費", "amount": 800, "vendor": "パラカ株式会社", "detail": "駐車場代"}, {"id": 2000062, "date": "2025-10-20", "month": 10, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 2000063, "date": "2025-10-21", "month": 10, "category": "車両費", "amount": 5389, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000064, "date": "2025-10-22", "month": 10, "category": "旅費交通費", "amount": 300, "vendor": "名鉄協商P上前津1丁目第2", "detail": "駐車場代"}, {"id": 2000065, "date": "2025-10-22", "month": 10, "category": "旅費交通費", "amount": 900, "vendor": "エステイトパーク千代田3丁目", "detail": "駐車場代"}, {"id": 2000066, "date": "2025-10-25", "month": 10, "category": "接待交際費", "amount": 1110, "vendor": "スターバックスコーヒー", "detail": "打合せ（小池さん）"}, {"id": 2000067, "date": "2025-10-26", "month": 10, "category": "消耗品費", "amount": 200, "vendor": "ローソン金山駅前", "detail": "プリント代"}, {"id": 2000068, "date": "2025-10-26", "month": 10, "category": "消耗品費", "amount": 10, "vendor": "ローソン金山駅前", "detail": "プリント代"}, {"id": 2000069, "date": "2025-10-27", "month": 10, "category": "旅費交通費", "amount": 1100, "vendor": "カナレタクシー", "detail": "タクシー代"}, {"id": 2000070, "date": "2025-10-27", "month": 10, "category": "消耗品費", "amount": 20387, "vendor": "無印良品", "detail": "文具、収納用品"}, {"id": 2000071, "date": "2025-10-29", "month": 10, "category": "旅費交通費", "amount": 2000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 2000072, "date": "2025-10-29", "month": 10, "category": "消耗品費", "amount": 5500, "vendor": "JINS", "detail": "パソコン用メガネ"}, {"id": 2000073, "date": "2025-10-30", "month": 10, "category": "接待交際費", "amount": 5700, "vendor": "生そば清助", "detail": "打合せ（シェアコネクト）"}, {"id": 2000074, "date": "2025-10-31", "month": 10, "category": "通信費", "amount": 16173, "vendor": "ドコモ", "detail": "携帯代"}, {"id": 2000075, "date": "2025-10-31", "month": 10, "category": "旅費交通費", "amount": 1200, "vendor": "カナレタクシー", "detail": "タクシー代"}, {"id": 2000076, "date": "2025-09-01", "month": 9, "category": "車両費", "amount": 10980, "vendor": "ETC(9月分)", "detail": "有料道路代"}, {"id": 2000077, "date": "2025-09-02", "month": 9, "category": "雑費", "amount": 880, "vendor": "パンカラト名古屋", "detail": "ブログ記事作成"}, {"id": 2000078, "date": "2025-09-03", "month": 9, "category": "接待交際費", "amount": 1836, "vendor": "高島屋", "detail": "清新手土産代"}, {"id": 2000079, "date": "2025-09-04", "month": 9, "category": "接待交際費", "amount": 1920, "vendor": "びっくりドンキー", "detail": "打合せ（シェアコネクト）"}, {"id": 2000080, "date": "2025-09-04", "month": 9, "category": "車両費", "amount": 5652, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000081, "date": "2025-09-05", "month": 9, "category": "旅費交通費", "amount": 680, "vendor": "岩間交通", "detail": "タクシー代"}, {"id": 2000082, "date": "2025-09-06", "month": 9, "category": "旅費交通費", "amount": 200, "vendor": "MAYパーク安城", "detail": "駐車場代"}, {"id": 2000083, "date": "2025-09-09", "month": 9, "category": "接待交際費", "amount": 2650, "vendor": "おそば処葵", "detail": "打合せ（小池さん）"}, {"id": 2000084, "date": "2025-09-13", "month": 9, "category": "旅費交通費", "amount": 1000, "vendor": "東桜パーキング", "detail": "駐車場代"}, {"id": 2000085, "date": "2025-09-14", "month": 9, "category": "接待交際費", "amount": 2100, "vendor": "ほっともっと", "detail": "打合せ（清新）"}, {"id": 2000086, "date": "2025-09-14", "month": 9, "category": "車両費", "amount": 1000, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000087, "date": "2025-09-14", "month": 9, "category": "車両費", "amount": 55110, "vendor": "門前自動車販売株式会社", "detail": "車検代"}, {"id": 2000088, "date": "2025-09-14", "month": 9, "category": "租税公課", "amount": 34450, "vendor": "門前自動車販売株式会社", "detail": "自賠責保険、重量税、印紙代"}, {"id": 2000089, "date": "2025-09-15", "month": 9, "category": "接待交際費", "amount": 3120, "vendor": "ブリットボウル", "detail": "打合せ（シェアコネクト）"}, {"id": 2000090, "date": "2025-09-16", "month": 9, "category": "接待交際費", "amount": 1500, "vendor": "まるもち家", "detail": "シェアコネクト手土産代"}, {"id": 2000091, "date": "2025-09-16", "month": 9, "category": "接待交際費", "amount": 2422, "vendor": "シェシバタ", "detail": "小池さん手土産代"}, {"id": 2000092, "date": "2025-09-17", "month": 9, "category": "接待交際費", "amount": 5753, "vendor": "Pastaクオーレ", "detail": "打合せ（清新）"}, {"id": 2000093, "date": "2025-09-19", "month": 9, "category": "旅費交通費", "amount": 900, "vendor": "エイブルパーキング金山4丁目", "detail": "駐車場代"}, {"id": 2000094, "date": "2025-09-19", "month": 9, "category": "旅費交通費", "amount": 400, "vendor": "パークリノベーション", "detail": "駐車場代"}, {"id": 2000095, "date": "2025-09-20", "month": 9, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 2000096, "date": "2025-09-21", "month": 9, "category": "接待交際費", "amount": 5550, "vendor": "TORCH", "detail": "打合せ（小池さん）"}, {"id": 2000097, "date": "2025-09-22", "month": 9, "category": "車両費", "amount": 6053, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000098, "date": "2025-09-27", "month": 9, "category": "接待交際費", "amount": 3740, "vendor": "寿司丸忠", "detail": "打合せ（清新）"}, {"id": 2000099, "date": "2025-09-28", "month": 9, "category": "旅費交通費", "amount": 1600, "vendor": "カーパーク大須2丁目第2", "detail": "駐車場代"}, {"id": 2000100, "date": "2025-09-30", "month": 9, "category": "通信費", "amount": 13850, "vendor": "ドコモ", "detail": "携帯代"}, {"id": 2000101, "date": "2025-08-03", "month": 8, "category": "車両費", "amount": 4966, "vendor": "守山ガスステーション", "detail": "ガソリン代"}, {"id": 2000102, "date": "2025-08-03", "month": 8, "category": "接待交際費", "amount": 3240, "vendor": "高島屋", "detail": "お中元（清新）"}, {"id": 2000103, "date": "2025-08-04", "month": 8, "category": "旅費交通費", "amount": 1790, "vendor": "タクシーGO", "detail": "タクシー代"}, {"id": 2000104, "date": "2025-08-05", "month": 8, "category": "旅費交通費", "amount": 5000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 2000105, "date": "2025-08-06", "month": 8, "category": "旅費交通費", "amount": 400, "vendor": "M・Kパーキング", "detail": "駐車場代"}, {"id": 2000106, "date": "2025-08-09", "month": 8, "category": "旅費交通費", "amount": 600, "vendor": "エイブルパーキング金山4丁目", "detail": "駐車場代"}, {"id": 2000107, "date": "2025-08-09", "month": 8, "category": "車両費", "amount": 6840, "vendor": "ETC(8月分)", "detail": "有料道路代"}, {"id": 2000108, "date": "2025-08-15", "month": 8, "category": "接待交際費", "amount": 2440, "vendor": "ほっともっと", "detail": "打合せ弁当代（シェアコネクト）"}, {"id": 2000109, "date": "2025-08-16", "month": 8, "category": "旅費交通費", "amount": 10000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 2000110, "date": "2025-08-16", "month": 8, "category": "旅費交通費", "amount": 5000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 2000111, "date": "2025-08-16", "month": 8, "category": "旅費交通費", "amount": 6770, "vendor": "JR東海", "detail": "新幹線代"}, {"id": 2000112, "date": "2025-08-17", "month": 8, "category": "旅費交通費", "amount": 6770, "vendor": "JR東海", "detail": "新幹線代"}, {"id": 2000113, "date": "2025-08-17", "month": 8, "category": "旅費交通費", "amount": 1600, "vendor": "枚岡交通", "detail": "タクシー代"}, {"id": 2000114, "date": "2025-08-17", "month": 8, "category": "旅費交通費", "amount": 1000, "vendor": "タクシーGO", "detail": "タクシー代"}, {"id": 2000115, "date": "2025-08-20", "month": 8, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 2000116, "date": "2025-08-21", "month": 8, "category": "車両費", "amount": 4396, "vendor": "守山ガスステーション", "detail": "ガソリン代"}, {"id": 2000117, "date": "2025-08-26", "month": 8, "category": "旅費交通費", "amount": 900, "vendor": "アットパーク藤が丘", "detail": "駐車場代"}, {"id": 2000118, "date": "2025-08-31", "month": 8, "category": "通信費", "amount": 13982, "vendor": "ドコモ", "detail": "携帯代"}, {"id": 2000119, "date": "2025-07-03", "month": 7, "category": "車両費", "amount": 9260, "vendor": "ETC(7月分)", "detail": "有料道路代"}, {"id": 2000120, "date": "2025-07-06", "month": 7, "category": "消耗品費", "amount": 950, "vendor": "カナレタクシー", "detail": "タクシー代"}, {"id": 2000121, "date": "2025-07-09", "month": 7, "category": "旅費交通費", "amount": 950, "vendor": "カナレタクシー", "detail": "タクシー代"}, {"id": 2000122, "date": "2025-07-19", "month": 7, "category": "旅費交通費", "amount": 1500, "vendor": "金城ふ頭駐車場", "detail": "駐車場代"}, {"id": 2000123, "date": "2025-07-20", "month": 7, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 2000124, "date": "2025-07-21", "month": 7, "category": "旅費交通費", "amount": 800, "vendor": "リパーク金山4丁目第2", "detail": "駐車場代"}, {"id": 2000125, "date": "2025-07-21", "month": 7, "category": "車両費", "amount": 3183, "vendor": "守山ガスステーション", "detail": "ガソリン代"}, {"id": 2000126, "date": "2025-07-29", "month": 7, "category": "旅費交通費", "amount": 1700, "vendor": "タクシーGO", "detail": "タクシー代"}, {"id": 2000127, "date": "2025-07-31", "month": 7, "category": "旅費交通費", "amount": 1610, "vendor": "タクシーGO", "detail": "タクシー代"}, {"id": 2000128, "date": "2025-07-31", "month": 7, "category": "通信費", "amount": 15108, "vendor": "ドコモ", "detail": "携帯代"}, {"id": 2000129, "date": "2025-06-03", "month": 6, "category": "車両費", "amount": 10260, "vendor": "ETC(6月分)", "detail": "有料道路代"}, {"id": 2000130, "date": "2025-06-08", "month": 6, "category": "旅費交通費", "amount": 10000, "vendor": "名古屋市営地下鉄", "detail": "マナカチャージ"}, {"id": 2000131, "date": "2025-06-08", "month": 6, "category": "消耗品費", "amount": 4588, "vendor": "ニトリ", "detail": "ワゴン"}, {"id": 2000132, "date": "2025-06-08", "month": 6, "category": "消耗品費", "amount": 4989, "vendor": "ニトリ", "detail": "ワゴン"}, {"id": 2000133, "date": "2025-06-12", "month": 6, "category": "旅費交通費", "amount": 600, "vendor": "リパーク金山4丁目第2", "detail": "駐車場代"}, {"id": 2000134, "date": "2025-06-14", "month": 6, "category": "旅費交通費", "amount": 860, "vendor": "岩間交通", "detail": "タクシー代"}, {"id": 2000135, "date": "2025-06-14", "month": 6, "category": "車両費", "amount": 4028, "vendor": "中部空港ガスステーション", "detail": "ガソリン代"}, {"id": 2000136, "date": "2025-06-16", "month": 6, "category": "旅費交通費", "amount": 5000, "vendor": "名古屋市営地下鉄", "detail": "マナカチャージ"}, {"id": 2000137, "date": "2025-06-19", "month": 6, "category": "旅費交通費", "amount": 1000, "vendor": "パラカ株式会社", "detail": "駐車場代"}, {"id": 2000138, "date": "2025-06-19", "month": 6, "category": "旅費交通費", "amount": 1000, "vendor": "リパーク金山4丁目第2", "detail": "駐車場代"}, {"id": 2000139, "date": "2025-06-19", "month": 6, "category": "消耗品費", "amount": 3080, "vendor": "スマホランド楽天市場", "detail": "スマホケース"}, {"id": 2000140, "date": "2025-06-20", "month": 6, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 2000141, "date": "2025-06-26", "month": 6, "category": "旅費交通費", "amount": 10000, "vendor": "リパーク金山4丁目第2", "detail": "駐車場代"}, {"id": 2000142, "date": "2025-06-26", "month": 6, "category": "車両費", "amount": 3539, "vendor": "守山ガスステーション", "detail": "ガソリン代"}, {"id": 2000143, "date": "2025-06-26", "month": 6, "category": "損害保険料", "amount": 31170, "vendor": "楽天損保", "detail": "自動車保険代"}, {"id": 2000144, "date": "2025-06-30", "month": 6, "category": "通信費", "amount": 15135, "vendor": "ドコモ", "detail": "携帯代"}, {"id": 2000145, "date": "2025-05-03", "month": 5, "category": "旅費交通費", "amount": 900, "vendor": "アットパーク藤が丘", "detail": "駐車場代"}, {"id": 2000146, "date": "2025-05-04", "month": 5, "category": "消耗品費", "amount": 660, "vendor": "ダイソー", "detail": "文房具"}, {"id": 2000147, "date": "2025-05-05", "month": 5, "category": "車両費", "amount": 4160, "vendor": "ETC(5月分)", "detail": "有料道路代"}, {"id": 2000148, "date": "2025-05-06", "month": 5, "category": "接待交際費", "amount": 2618, "vendor": "THE gram", "detail": "打合せ（小池さん）"}, {"id": 2000149, "date": "2025-05-06", "month": 5, "category": "消耗品費", "amount": 509, "vendor": "ジムキング", "detail": "文房具"}, {"id": 2000150, "date": "2025-05-06", "month": 5, "category": "接待交際費", "amount": 4670, "vendor": "サガミ", "detail": "打合せ（清新 加藤さん）"}, {"id": 2000151, "date": "2025-05-10", "month": 5, "category": "旅費交通費", "amount": 2000, "vendor": "名古屋市営地下鉄", "detail": "マナカチャージ"}, {"id": 2000152, "date": "2025-05-10", "month": 5, "category": "車両費", "amount": 2344, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000153, "date": "2025-05-10", "month": 5, "category": "消耗品費", "amount": 4488, "vendor": "ヤマダ電機", "detail": "スマホケース、保護フィルム"}, {"id": 2000154, "date": "2025-05-11", "month": 5, "category": "旅費交通費", "amount": 950, "vendor": "悠路交通", "detail": "タクシー代"}, {"id": 2000155, "date": "2025-05-14", "month": 5, "category": "接待交際費", "amount": 2585, "vendor": "山本屋本店", "detail": "打合せ（小池さん）"}, {"id": 2000156, "date": "2025-05-15", "month": 5, "category": "旅費交通費", "amount": 1100, "vendor": "パラカ株式会社", "detail": "駐車場代"}, {"id": 2000157, "date": "2025-05-16", "month": 5, "category": "雑費", "amount": 520, "vendor": "コメダ珈琲店", "detail": "業務処理の為"}, {"id": 2000158, "date": "2025-05-20", "month": 5, "category": "旅費交通費", "amount": 900, "vendor": "アットパーク藤が丘", "detail": "駐車場代"}, {"id": 2000159, "date": "2025-05-20", "month": 5, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 2000160, "date": "2025-05-20", "month": 5, "category": "接待交際費", "amount": 1550, "vendor": "おらが蕎麦", "detail": "打合せ（清新 加藤さん）"}, {"id": 2000161, "date": "2025-05-22", "month": 5, "category": "車両費", "amount": 2811, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000162, "date": "2025-05-24", "month": 5, "category": "接待交際費", "amount": 13607, "vendor": "旭川成吉思汗大黒屋", "detail": "シェアコネクト打合せ"}, {"id": 2000163, "date": "2025-05-26", "month": 5, "category": "旅費交通費", "amount": 950, "vendor": "二葉タクシー", "detail": "タクシー代"}, {"id": 2000164, "date": "2025-05-27", "month": 5, "category": "接待交際費", "amount": 2214, "vendor": "小倉山荘", "detail": "清新手土産代"}, {"id": 2000165, "date": "2025-05-27", "month": 5, "category": "接待交際費", "amount": 1188, "vendor": "シェシバタ", "detail": "シェアコネクト手土産代"}, {"id": 2000166, "date": "2025-05-27", "month": 5, "category": "旅費交通費", "amount": 950, "vendor": "カナレタクシー", "detail": "タクシー代"}, {"id": 2000167, "date": "2025-05-28", "month": 5, "category": "接待交際費", "amount": 3470, "vendor": "サガミ", "detail": "打合せ（清新 加藤さん）"}, {"id": 2000168, "date": "2025-05-29", "month": 5, "category": "消耗品費", "amount": 2178, "vendor": "イオンリテール", "detail": "突っ張り棒"}, {"id": 2000169, "date": "2025-05-30", "month": 5, "category": "消耗品費", "amount": 7960, "vendor": "無印良品", "detail": "台車"}, {"id": 2000170, "date": "2025-05-31", "month": 5, "category": "通信費", "amount": 15635, "vendor": "ドコモ", "detail": "携帯代"}, {"id": 2000171, "date": "2025-04-01", "month": 4, "category": "旅費交通費", "amount": 10000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 2000172, "date": "2025-04-06", "month": 4, "category": "旅費交通費", "amount": 1040, "vendor": "銀河タクシー", "detail": "タクシー代"}, {"id": 2000173, "date": "2025-04-06", "month": 4, "category": "接待交際費", "amount": 3660, "vendor": "ひろ×ひろ", "detail": "シェアコネクト打合せ"}, {"id": 2000174, "date": "2025-04-08", "month": 4, "category": "雑費", "amount": 693, "vendor": "喫茶リッチ", "detail": "領収書整理の為"}, {"id": 2000175, "date": "2025-04-10", "month": 4, "category": "旅費交通費", "amount": 600, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 2000176, "date": "2025-04-13", "month": 4, "category": "車両費", "amount": 430, "vendor": "ETC", "detail": "有料道路代"}, {"id": 2000177, "date": "2025-04-13", "month": 4, "category": "車両費", "amount": 46640, "vendor": "門前自動車販売", "detail": "ウォーターポンプ取替"}, {"id": 2000178, "date": "2025-04-15", "month": 4, "category": "車両費", "amount": 5525, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000179, "date": "2025-04-19", "month": 4, "category": "車両費", "amount": 600, "vendor": "ETC", "detail": "有料道路代"}, {"id": 2000180, "date": "2025-04-19", "month": 4, "category": "車両費", "amount": 780, "vendor": "ETC", "detail": "有料道路代"}, {"id": 2000181, "date": "2025-04-20", "month": 4, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 2000182, "date": "2025-04-23", "month": 4, "category": "旅費交通費", "amount": 2000, "vendor": "近畿日本鉄道", "detail": "マナカチャージ"}, {"id": 2000183, "date": "2025-04-25", "month": 4, "category": "接待交際費", "amount": 12496, "vendor": "まるいち", "detail": "シェアコネクト打合せ"}, {"id": 2000184, "date": "2025-04-27", "month": 4, "category": "接待交際費", "amount": 4720, "vendor": "蕎野", "detail": "打合せ（清新 加藤さん）"}, {"id": 2000185, "date": "2025-04-28", "month": 4, "category": "接待交際費", "amount": 3047, "vendor": "寿司丸忠", "detail": "打合せ（清新 加藤さん）"}, {"id": 2000186, "date": "2025-04-30", "month": 4, "category": "車両費", "amount": 4304, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000187, "date": "2025-04-30", "month": 4, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 2000188, "date": "2025-04-30", "month": 4, "category": "通信費", "amount": 17335, "vendor": "ドコモ", "detail": "携帯代"}, {"id": 2000189, "date": "2025-03-01", "month": 3, "category": "車両費", "amount": 3661, "vendor": "ジェームス", "detail": "シガーソケット、座布団"}, {"id": 2000190, "date": "2025-03-02", "month": 3, "category": "車両費", "amount": 6950, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ワイパーゴム交換"}, {"id": 2000191, "date": "2025-03-02", "month": 3, "category": "車両費", "amount": 40850, "vendor": "ETC(3月分)", "detail": "有料道路代"}, {"id": 2000192, "date": "2025-03-02", "month": 3, "category": "接待交際費", "amount": 2567, "vendor": "LUPICIA", "detail": "シェアコネクト打合せ"}, {"id": 2000193, "date": "2025-03-03", "month": 3, "category": "旅費交通費", "amount": 400, "vendor": "名鉄協商P藤が丘北第3", "detail": "駐車場代"}, {"id": 2000194, "date": "2025-03-07", "month": 3, "category": "接待交際費", "amount": 1520, "vendor": "おらが蕎麦", "detail": "シェアコネクト打合せ"}, {"id": 2000195, "date": "2025-03-09", "month": 3, "category": "車両費", "amount": 36800, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "バッテリー交換"}, {"id": 2000196, "date": "2025-03-10", "month": 3, "category": "旅費交通費", "amount": 900, "vendor": "パラカ株式会社", "detail": "駐車場代"}, {"id": 2000197, "date": "2025-03-12", "month": 3, "category": "通信費", "amount": 420, "vendor": "伊神切手社", "detail": "レターパックライト"}, {"id": 2000198, "date": "2025-03-13", "month": 3, "category": "通信費", "amount": 110, "vendor": "セブンイレブン長久手池田店", "detail": "切手代"}, {"id": 2000199, "date": "2025-03-13", "month": 3, "category": "車両費", "amount": 5005, "vendor": "守山ガスステーション", "detail": "ガソリン代"}, {"id": 2000200, "date": "2025-03-13", "month": 3, "category": "消耗品費", "amount": 598, "vendor": "IKEA長久手", "detail": "収納袋用フリーザーバック"}, {"id": 2000201, "date": "2025-03-14", "month": 3, "category": "消耗品費", "amount": 4770, "vendor": "無印良品", "detail": "収納BOX"}, {"id": 2000202, "date": "2025-03-14", "month": 3, "category": "接待交際費", "amount": 2862, "vendor": "妙香園", "detail": "シェアコネクト手土産代"}, {"id": 2000203, "date": "2025-03-17", "month": 3, "category": "旅費交通費", "amount": 700, "vendor": "名鉄協商P藤が丘北第2", "detail": "駐車場代"}, {"id": 2000204, "date": "2025-03-17", "month": 3, "category": "消耗品費", "amount": 330, "vendor": "3COINS OOOPS！", "detail": "ライトニングケーブル"}, {"id": 2000205, "date": "2025-03-19", "month": 3, "category": "旅費交通費", "amount": 33300, "vendor": "楽天トラベル", "detail": "宿泊費"}, {"id": 2000206, "date": "2025-03-20", "month": 3, "category": "地代家賃", "amount": 11328, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 2000207, "date": "2025-03-21", "month": 3, "category": "接待交際費", "amount": 3240, "vendor": "名鉄商店", "detail": "清新手土産代"}, {"id": 2000208, "date": "2025-03-21", "month": 3, "category": "接待交際費", "amount": 2598, "vendor": "坂角総本舗", "detail": "シェアコネクト手土産代"}, {"id": 2000209, "date": "2025-03-21", "month": 3, "category": "接待交際費", "amount": 1695, "vendor": "花桔梗", "detail": "清新手土産代"}, {"id": 2000210, "date": "2025-03-23", "month": 3, "category": "旅費交通費", "amount": 700, "vendor": "名鉄協商P藤が丘北第2", "detail": "駐車場代"}, {"id": 2000211, "date": "2025-03-24", "month": 3, "category": "旅費交通費", "amount": 860, "vendor": "カナレタクシー", "detail": "タクシー代"}, {"id": 2000212, "date": "2025-03-25", "month": 3, "category": "車両費", "amount": 2703, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "ガソリン代"}, {"id": 2000213, "date": "2025-03-31", "month": 3, "category": "旅費交通費", "amount": 860, "vendor": "中日本タクシー", "detail": "タクシー代"}, {"id": 2000214, "date": "2025-03-31", "month": 3, "category": "通信費", "amount": 15670, "vendor": "ドコモ", "detail": "携帯代"}, {"id": 2000215, "date": "2025-02-06", "month": 2, "category": "車両費", "amount": 1000, "vendor": "エイブルパーキング金山4丁目", "detail": "駐車場代"}, {"id": 2000216, "date": "2025-02-06", "month": 2, "category": "接待交際費", "amount": 11660, "vendor": "うな和", "detail": "清新打合せ"}, {"id": 2000217, "date": "2025-02-06", "month": 2, "category": "車両費", "amount": 4773, "vendor": "コストコ守山ガスステーション", "detail": "ガソリン代"}, {"id": 2000218, "date": "2025-02-08", "month": 2, "category": "旅費交通費", "amount": 5000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 2000219, "date": "2025-02-09", "month": 2, "category": "旅費交通費", "amount": 950, "vendor": "よしかわ交通", "detail": "タクシー代"}, {"id": 2000220, "date": "2025-02-09", "month": 2, "category": "旅費交通費", "amount": 10880, "vendor": "JR東海", "detail": "新幹線代"}, {"id": 2000221, "date": "2025-02-09", "month": 2, "category": "旅費交通費", "amount": 10880, "vendor": "JR東海", "detail": "新幹線代"}, {"id": 2000222, "date": "2025-02-11", "month": 2, "category": "会議・研修費", "amount": 2090, "vendor": "正分館書店", "detail": "本"}, {"id": 2000223, "date": "2025-02-11", "month": 2, "category": "車両費", "amount": 780, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000224, "date": "2025-02-11", "month": 2, "category": "車両費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000225, "date": "2025-02-12", "month": 2, "category": "接待交際費", "amount": 3304, "vendor": "JR名古屋高島屋", "detail": "清新手土産代"}, {"id": 2000226, "date": "2025-02-13", "month": 2, "category": "雑費", "amount": 418, "vendor": "デニーズ", "detail": "帳簿整理のため、ドリンクバー"}, {"id": 2000227, "date": "2025-02-13", "month": 2, "category": "車両費", "amount": 900, "vendor": "名鉄協商P藤が丘北第3", "detail": "駐車場代"}, {"id": 2000228, "date": "2025-02-13", "month": 2, "category": "旅費交通費", "amount": 2000, "vendor": "名古屋市交通局", "detail": "マナカチャージ"}, {"id": 2000229, "date": "2025-02-13", "month": 2, "category": "接待交際費", "amount": 3580, "vendor": "ソバキチ", "detail": "シェアコネクト打合せ"}, {"id": 2000230, "date": "2025-02-16", "month": 2, "category": "車両費", "amount": 700, "vendor": "MAYパーク藤が丘", "detail": "駐車場代"}, {"id": 2000231, "date": "2025-02-17", "month": 2, "category": "車両費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000232, "date": "2025-02-17", "month": 2, "category": "車両費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000233, "date": "2025-02-18", "month": 2, "category": "車両費", "amount": 1100, "vendor": "パラカ株", "detail": "駐車場代"}, {"id": 2000234, "date": "2025-02-18", "month": 2, "category": "消耗品費", "amount": 500, "vendor": "無印良品", "detail": "筆記具"}, {"id": 2000235, "date": "2025-02-20", "month": 2, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 2000236, "date": "2025-02-20", "month": 2, "category": "車両費", "amount": 900, "vendor": "名鉄協商P藤が丘北第3", "detail": "駐車場代"}, {"id": 2000237, "date": "2025-02-22", "month": 2, "category": "車両費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000238, "date": "2025-02-22", "month": 2, "category": "車両費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000239, "date": "2025-02-22", "month": 2, "category": "車両費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000240, "date": "2025-02-22", "month": 2, "category": "車両費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000241, "date": "2025-02-25", "month": 2, "category": "車両費", "amount": 4768, "vendor": "コストコ守山ガスステーション", "detail": "ガソリン代"}, {"id": 2000242, "date": "2025-02-28", "month": 2, "category": "通信費", "amount": 16088, "vendor": "ドコモ", "detail": "携帯代"}, {"id": 2000243, "date": "2025-02-28", "month": 2, "category": "車両費", "amount": 500, "vendor": "エムエス名駅5丁目第2パーキング", "detail": "駐車場代"}, {"id": 2000244, "date": "2025-01-02", "month": 1, "category": "車両費", "amount": 5689, "vendor": "コストコ守山ガスステーション", "detail": "ガソリン代"}, {"id": 2000245, "date": "2025-01-03", "month": 1, "category": "車両費", "amount": 310, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000246, "date": "2025-01-03", "month": 1, "category": "車両費", "amount": 520, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000247, "date": "2025-01-04", "month": 1, "category": "車両費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000248, "date": "2025-01-04", "month": 1, "category": "車両費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000249, "date": "2025-01-04", "month": 1, "category": "車両費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000250, "date": "2025-01-04", "month": 1, "category": "車両費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000251, "date": "2025-01-08", "month": 1, "category": "旅費交通費", "amount": 3000, "vendor": "名古屋鉄道", "detail": "マナカチャージ"}, {"id": 2000252, "date": "2025-01-09", "month": 1, "category": "車両費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000253, "date": "2025-01-09", "month": 1, "category": "車両費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000254, "date": "2025-01-11", "month": 1, "category": "接待交際費", "amount": 1458, "vendor": "名鉄百貨店", "detail": "シェアコネクト手土産代"}, {"id": 2000255, "date": "2025-01-11", "month": 1, "category": "消耗品費", "amount": 5820, "vendor": "無印良品", "detail": "ゴミ箱、ゴミ袋、マイクロファイバーの清掃道具"}, {"id": 2000256, "date": "2025-01-11", "month": 1, "category": "消耗品費", "amount": 6578, "vendor": "ロフト", "detail": "収納ボックス、封筒等"}, {"id": 2000257, "date": "2025-01-16", "month": 1, "category": "車両費", "amount": 400, "vendor": "リパーク金山4丁目第2", "detail": "駐車場代"}, {"id": 2000258, "date": "2025-01-16", "month": 1, "category": "車両費", "amount": 5089, "vendor": "コストコ守山ガスステーション", "detail": "ガソリン代"}, {"id": 2000259, "date": "2025-01-16", "month": 1, "category": "車両費", "amount": 94000, "vendor": "(株)角田石油エネジェット長久手SS", "detail": "タイヤ代"}, {"id": 2000260, "date": "2025-01-16", "month": 1, "category": "接待交際費", "amount": 4279, "vendor": "にぎりの徳兵衛", "detail": "シェアコネクト打合せ"}, {"id": 2000261, "date": "2025-01-20", "month": 1, "category": "地代家賃", "amount": 7370, "vendor": "パークダイレクト", "detail": "駐車場代"}, {"id": 2000262, "date": "2025-01-21", "month": 1, "category": "車両費", "amount": 900, "vendor": "名鉄協商P 藤が丘北第3", "detail": "駐車場代"}, {"id": 2000263, "date": "2025-01-22", "month": 1, "category": "消耗品費", "amount": 399, "vendor": "ニトリ", "detail": "マイクロファイバー"}, {"id": 2000264, "date": "2025-01-23", "month": 1, "category": "接待交際費", "amount": 6390, "vendor": "寿司御殿", "detail": "清新打合せ"}, {"id": 2000265, "date": "2025-01-25", "month": 1, "category": "接待交際費", "amount": 1922, "vendor": "名鉄百貨店", "detail": "清新手土産代"}, {"id": 2000266, "date": "2025-01-29", "month": 1, "category": "車両費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000267, "date": "2025-01-29", "month": 1, "category": "車両費", "amount": 500, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000268, "date": "2025-01-29", "month": 1, "category": "車両費", "amount": 430, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000269, "date": "2025-01-29", "month": 1, "category": "車両費", "amount": 280, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000270, "date": "2025-01-29", "month": 1, "category": "車両費", "amount": 300, "vendor": "ETCカード", "detail": "有料道路代"}, {"id": 2000271, "date": "2025-01-31", "month": 1, "category": "通信費", "amount": 15377, "vendor": "ドコモ", "detail": "携帯代"}]));
+  }
+})();
+
+// Set today as default date
+document.getElementById('m_date').value = new Date().toISOString().split('T')[0];
+document.getElementById('f_date').value = new Date().toISOString().split('T')[0];
+document.getElementById('f_month').value = new Date().getMonth() + 1;
+
+// Init year display
+expenses = JSON.parse(localStorage.getItem(storeKey(currentYear)) || '[]');
+// Init year display
+document.getElementById('yearBadge').textContent = currentYear + '年';
+document.title = '経費振り分けアプリ ' + currentYear;
+updateApiKeyBtn();
+
+// Modal backdrop close
+document.getElementById('yearModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('yearModal')) closeYearPicker();
+});
+</script>
+</body>
+</html>
