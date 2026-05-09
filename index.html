@@ -15,10 +15,10 @@
   --text: #1a1815;
   --text2: #6b6560;
   --text3: #9c978f;
-  --accent: #c45c1a;
-  --accent-light: #fdf0e6;
-  --accent-mid: #e07830;
-  --danger: #c0392b;
+  --accent: #2877b8;
+  --accent-light: #e8f2fb;
+  --accent-mid: #4a9fd4;
+  --danger: #b7282e;
   --danger-light: #fdf0ee;
   --amber: #b5620a;
   --amber-light: #fef3e2;
@@ -37,10 +37,10 @@
     --text: #f0ede8;
     --text2: #a09890;
     --text3: #6b6560;
-    --accent: #e8834a;
-    --accent-light: #2e1a0a;
-    --accent-mid: #e07830;
-    --danger: #e05c4b;
+    --accent: #5aaae8;
+    --accent-light: #0a1e30;
+    --accent-mid: #4a9fd4;
+    --danger: #d94040;
     --danger-light: #2a1815;
     --amber: #d4832a;
     --amber-light: #2a1e0a;
@@ -504,7 +504,7 @@ select.field-input { cursor: pointer; }
 .cat-旅費交通費 { background: #e8f3fe; color: #1a5fa8; }
 .cat-車両費 { background: #fef3e2; color: #8a4500; }
 .cat-接待交際費 { background: #fce8f3; color: #8a1a5a; }
-.cat-消耗品費 { background: #e8fef0; color: #c45c1a; }
+.cat-消耗品費 { background: #e8fef0; color: #2877b8; }
 .cat-通信費 { background: #f0e8fe; color: #5a1a8a; }
 .cat-地代家賃 { background: #fef0e8; color: #8a3a1a; }
 .cat-損害保険料 { background: #e8f0fe; color: #1a3a8a; }
@@ -762,6 +762,38 @@ select.field-input { cursor: pointer; }
     </div>
   </div>
 </div>
+
+  <!-- EDIT MODAL -->
+  <div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:400;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border-radius:var(--radius);padding:24px;width:min(480px,94vw);max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <p style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:16px;">内容を編集</p>
+      <input type="hidden" id="edit_id">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div><p style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:4px;">日付</p>
+          <input class="field-input" type="date" id="edit_date"></div>
+        <div><p style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:4px;">月</p>
+          <select class="field-input" id="edit_month">
+            <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+            <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+            <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+            <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+          </select></div>
+        <div><p style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:4px;">借方科目</p>
+          <select class="field-input" id="edit_category" onchange="if(this.value==='__custom__'){document.getElementById('edit_cat_custom').style.display='block'}else{document.getElementById('edit_cat_custom').style.display='none'}"></select>
+          <input class="field-input" type="text" id="edit_cat_custom" placeholder="科目名を入力" style="display:none;margin-top:6px;"></div>
+        <div><p style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:4px;">金額（円）</p>
+          <input class="field-input" type="number" id="edit_amount"></div>
+      </div>
+      <div style="margin-bottom:10px;"><p style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:4px;">取引先</p>
+        <input class="field-input" type="text" id="edit_vendor"></div>
+      <div style="margin-bottom:16px;"><p style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:4px;">内容</p>
+        <input class="field-input" type="text" id="edit_detail"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="saveEdit()" style="flex:1;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">保存する</button>
+        <button onclick="closeEditModal()" style="padding:10px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;cursor:pointer;font-family:inherit;color:var(--text);">キャンセル</button>
+      </div>
+    </div>
+  </div>
 
 <div class="toast" id="toast"></div>
 
@@ -1048,14 +1080,25 @@ async function processFile(file) {
     });
 
     const data = await response.json();
+
+    // APIエラーチェック
+    if (data.error) {
+      throw new Error('APIエラー: ' + data.error.message);
+    }
+    if (!data.content || !data.content.length) {
+      throw new Error('レスポンスが空です');
+    }
+
     const text = data.content.map(b => b.text || '').join('');
-    const clean = text.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
+    // JSONブロックを抽出
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('JSONが見つかりません: ' + text.slice(0, 100));
+    const parsed = JSON.parse(jsonMatch[0]);
     fillScanForm(parsed, file.name);
   } catch (err) {
-    console.error(err);
+    console.error('解析エラー:', err);
     fillScanForm({}, file.name);
-    showToast('解析に失敗しました。手動で入力してください。');
+    showToast('解析失敗: ' + err.message);
   } finally {
     hideLoading();
   }
@@ -1153,7 +1196,10 @@ function renderTable() {
         <div style="font-weight:500;color:var(--text);font-size:13px;">${e.vendor || '-'}</div>
         <div>${e.detail || ''}</div>
       </td>
-      <td><button class="del-btn" onclick="deleteEntry(${e.id})">✕</button></td>
+      <td style="white-space:nowrap;">
+        <button class="del-btn" onclick="openEditModal(${e.id})" style="color:var(--text2);margin-right:2px;">✏️</button>
+        <button class="del-btn" onclick="deleteEntry(${e.id})">✕</button>
+      </td>
     </tr>
   `).join('');
 }
@@ -1170,6 +1216,63 @@ function deleteEntry(id) {
   save();
   renderTable();
   showToast('削除しました');
+}
+
+// ── EDIT MODAL ──
+function openEditModal(id) {
+  const e = expenses.find(e => e.id === id);
+  if (!e) return;
+
+  document.getElementById('edit_id').value = id;
+  document.getElementById('edit_date').value = e.date || '';
+  document.getElementById('edit_month').value = e.month || 1;
+  document.getElementById('edit_amount').value = e.amount || '';
+  document.getElementById('edit_vendor').value = e.vendor || '';
+  document.getElementById('edit_detail').value = e.detail || '';
+
+  // 科目セット
+  const catSel = document.getElementById('edit_category');
+  const cats = getAllCats();
+  catSel.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('')
+    + '<option value="__custom__">その他（直接入力）</option>';
+  if (cats.includes(e.category)) {
+    catSel.value = e.category;
+    document.getElementById('edit_cat_custom').style.display = 'none';
+  } else {
+    catSel.value = '__custom__';
+    document.getElementById('edit_cat_custom').value = e.category || '';
+    document.getElementById('edit_cat_custom').style.display = 'block';
+  }
+
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').style.display = 'none';
+}
+
+function saveEdit() {
+  const id = parseInt(document.getElementById('edit_id').value);
+  const date = document.getElementById('edit_date').value;
+  const month = parseInt(document.getElementById('edit_month').value);
+  const catSel = document.getElementById('edit_category').value;
+  const category = catSel === '__custom__'
+    ? document.getElementById('edit_cat_custom').value.trim() || '未分類'
+    : catSel;
+  const amount = parseInt(document.getElementById('edit_amount').value) || 0;
+  const vendor = document.getElementById('edit_vendor').value.trim();
+  const detail = document.getElementById('edit_detail').value.trim();
+
+  if (!amount) { showToast('金額を入力してください'); return; }
+  if (catSel === '__custom__' && category !== '未分類') addCustomCat(category);
+
+  const idx = expenses.findIndex(e => e.id === id);
+  if (idx === -1) return;
+  expenses[idx] = { ...expenses[idx], date, month, category, amount, vendor, detail };
+  save();
+  closeEditModal();
+  renderTable();
+  showToast('更新しました ✓');
 }
 
 // ── SUMMARY ──
@@ -1397,6 +1500,9 @@ document.title = '経費まとめ ' + currentYear;
 updateApiKeyBtn();
 
 // Modal backdrop close
+document.getElementById('editModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('editModal')) closeEditModal();
+});
 document.getElementById('yearModal').addEventListener('click', e => {
   if (e.target === document.getElementById('yearModal')) closeYearPicker();
 });
