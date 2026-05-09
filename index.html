@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>経費振り分けアプリ 2025</title>
+<title>経費まとめ 2025</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root {
@@ -15,9 +15,9 @@
   --text: #1a1815;
   --text2: #6b6560;
   --text3: #9c978f;
-  --accent: #2d5a3d;
-  --accent-light: #e8f0eb;
-  --accent-mid: #4a8a60;
+  --accent: #c45c1a;
+  --accent-light: #fdf0e6;
+  --accent-mid: #e07830;
   --danger: #c0392b;
   --danger-light: #fdf0ee;
   --amber: #b5620a;
@@ -37,9 +37,9 @@
     --text: #f0ede8;
     --text2: #a09890;
     --text3: #6b6560;
-    --accent: #5aaa78;
-    --accent-light: #1a2e20;
-    --accent-mid: #4a8a60;
+    --accent: #e8834a;
+    --accent-light: #2e1a0a;
+    --accent-mid: #e07830;
     --danger: #e05c4b;
     --danger-light: #2a1815;
     --amber: #d4832a;
@@ -74,21 +74,10 @@ header {
   gap: 12px;
 }
 
-.logo-mark {
-  width: 32px; height: 32px;
-  background: var(--accent);
-  border-radius: var(--radius-sm);
-  display: flex; align-items: center; justify-content: center;
-  color: #fff;
-  font-size: 16px;
-  flex-shrink: 0;
-}
-
 header h1 {
   font-size: 15px;
   font-weight: 600;
   color: var(--text);
-  flex: 1;
 }
 
 .year-badge {
@@ -515,7 +504,7 @@ select.field-input { cursor: pointer; }
 .cat-旅費交通費 { background: #e8f3fe; color: #1a5fa8; }
 .cat-車両費 { background: #fef3e2; color: #8a4500; }
 .cat-接待交際費 { background: #fce8f3; color: #8a1a5a; }
-.cat-消耗品費 { background: #e8fef0; color: #1a6b3a; }
+.cat-消耗品費 { background: #e8fef0; color: #c45c1a; }
 .cat-通信費 { background: #f0e8fe; color: #5a1a8a; }
 .cat-地代家賃 { background: #fef0e8; color: #8a3a1a; }
 .cat-損害保険料 { background: #e8f0fe; color: #1a3a8a; }
@@ -564,17 +553,16 @@ select.field-input { cursor: pointer; }
 
 <div class="app">
   <header>
-    <div class="logo-mark">円</div>
-    <h1>経費振り分けアプリ</h1>
-    <button id="apiKeyBtn" onclick="openApiKeyModal()" title="APIキー設定" style="background:none;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text2);font-family:inherit;white-space:nowrap;">🔑 APIキー</button>
-    <span class="year-badge" id="yearBadge" onclick="openYearPicker()" title="クリックして年を変更" style="cursor:pointer;">2025年</span>
+    <h1>経費まとめ</h1>
+    <span class="year-badge" id="yearBadge" onclick="openYearPicker()" title="クリックして年を変更" style="cursor:pointer;flex-shrink:0;">2025年</span>
+    <button id="apiKeyBtn" onclick="openApiKeyModal()" title="APIキー設定" style="background:none;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text2);font-family:inherit;white-space:nowrap;margin-left:auto;">🔑 APIキー</button>
   </header>
 
   <!-- API KEY MODAL -->
   <div id="apiKeyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:400;align-items:center;justify-content:center;">
     <div style="background:var(--surface);border-radius:var(--radius);padding:24px;width:min(420px,92vw);box-shadow:0 8px 32px rgba(0,0,0,0.2);">
       <p style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;">Anthropic APIキーを設定</p>
-      <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6;">APIキーを設定すると、画像・PDFの自動読み取りができます。<br>設定しなくても手動入力は使えます。<br>キーは <a href="https://console.anthropic.com/" target="_blank" style="color:var(--accent)">console.anthropic.com</a> で取得できます。<br>このデバイスのみに保存されます。</p>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6;">APIキーを設定すると、<strong>画像・PDF両方</strong>の領収書を自動読み取りできます。<br>未設定でも手動入力は使えます。<br>キーは <a href="https://console.anthropic.com/" target="_blank" style="color:var(--accent)">console.anthropic.com</a> で取得できます。<br>このデバイスのローカルストレージにのみ保存されます。</p>
       <input id="apiKeyInput" type="password" placeholder="sk-ant-..." autocomplete="off"
         style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:monospace;margin-bottom:12px;">
       <div style="display:flex;gap:8px;">
@@ -616,8 +604,8 @@ select.field-input { cursor: pointer; }
         <div class="dropzone" id="dropzone">
           <input type="file" id="fileInput" accept="image/*,application/pdf" multiple>
           <div class="drop-icon">📷</div>
-          <p class="drop-main" id="uploadMain">写真を選択またはドロップ</p>
-          <p class="drop-sub" id="uploadSub">JPG・PNG・HEIC 対応 / 複数同時OK<br><span id="pdfHint" style="color:var(--amber);"></span></p>
+          <p class="drop-main" id="uploadMain">写真・PDF を選択またはドロップ</p>
+          <p class="drop-sub" id="uploadSub">JPG・PNG・HEIC・PDF 対応 / 複数同時OK</p>
         </div>
 
         <div class="progress-wrap" id="progressWrap">
@@ -653,12 +641,14 @@ select.field-input { cursor: pointer; }
             </div>
             <div class="field-group">
               <label class="field-label">借方科目</label>
-              <select class="field-input" id="f_category">
+              <select class="field-input" id="f_category" onchange="toggleCustomCat('f_category','f_cat_custom')">
                 <option>旅費交通費</option><option>車両費</option><option>接待交際費</option>
                 <option>消耗品費</option><option>通信費</option><option>地代家賃</option>
                 <option>損害保険料</option><option>会議・研修費</option><option>租税公課</option>
                 <option>修繕費</option><option>支払手数料</option><option>雑費</option>
+                <option value="__custom__">その他（直接入力）</option>
               </select>
+              <input class="field-input" type="text" id="f_cat_custom" placeholder="科目名を入力" style="display:none;margin-top:6px">
             </div>
             <div class="field-group">
               <label class="field-label">金額 (¥)</label>
@@ -695,12 +685,14 @@ select.field-input { cursor: pointer; }
           </div>
           <div class="field-group">
             <label class="field-label">借方科目</label>
-            <select class="field-input" id="m_category">
+            <select class="field-input" id="m_category" onchange="toggleCustomCat('m_category','m_cat_custom')">
               <option>旅費交通費</option><option>車両費</option><option>接待交際費</option>
               <option>消耗品費</option><option>通信費</option><option>地代家賃</option>
               <option>損害保険料</option><option>会議・研修費</option><option>租税公課</option>
               <option>修繕費</option><option>支払手数料</option><option>雑費</option>
+              <option value="__custom__">その他（直接入力）</option>
             </select>
+            <input class="field-input" type="text" id="m_cat_custom" placeholder="科目名を入力" style="display:none;margin-top:6px">
           </div>
           <div class="field-group">
             <label class="field-label">金額 (¥)</label>
@@ -781,6 +773,20 @@ select.field-input { cursor: pointer; }
 </div>
 
 <script>
+
+// ── CUSTOM CATEGORY ──
+function toggleCustomCat(selId, inputId) {
+  const sel = document.getElementById(selId);
+  const inp = document.getElementById(inputId);
+  if (sel.value === '__custom__') {
+    inp.style.display = 'block';
+    inp.focus();
+  } else {
+    inp.style.display = 'none';
+    inp.value = '';
+  }
+}
+
 // ── DATA STORE ──
 const YEAR_KEY = 'expenseYear';
 let currentYear = parseInt(localStorage.getItem(YEAR_KEY) || new Date().getFullYear());
@@ -793,7 +799,7 @@ function initYear(y) {
   localStorage.setItem(YEAR_KEY, y);
   expenses = JSON.parse(localStorage.getItem(storeKey(y)) || '[]');
   document.getElementById('yearBadge').textContent = y + '年';
-  document.title = '経費振り分けアプリ ' + y;
+  document.title = '経費まとめ ' + y;
 }
 
 function openYearPicker() {
@@ -831,10 +837,41 @@ function closeYearPicker() {
   document.getElementById('yearModal').style.display = 'none';
 }
 
-const CATEGORIES = [
+const CATEGORIES_DEFAULT = [
   '旅費交通費','車両費','接待交際費','消耗品費','通信費',
   '地代家賃','損害保険料','会議・研修費','租税公課','修繕費','支払手数料','雑費'
 ];
+const CUSTOM_CATS_KEY = 'kehi_custom_cats';
+
+function getCustomCats() {
+  return JSON.parse(localStorage.getItem(CUSTOM_CATS_KEY) || '[]');
+}
+function getAllCats() {
+  const custom = getCustomCats();
+  return [...CATEGORIES_DEFAULT, ...custom.filter(c => !CATEGORIES_DEFAULT.includes(c))];
+}
+function addCustomCat(name) {
+  const custom = getCustomCats();
+  if (!custom.includes(name) && !CATEGORIES_DEFAULT.includes(name)) {
+    custom.push(name);
+    localStorage.setItem(CUSTOM_CATS_KEY, JSON.stringify(custom));
+    rebuildCatSelects();
+    showToast(name + ' を科目一覧に追加しました ✓');
+  }
+}
+function rebuildCatSelects() {
+  const cats = getAllCats();
+  ['f_category', 'm_category'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const val = sel.value;
+    sel.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('')
+      + '<option value="__custom__">その他（直接入力）</option>';
+    if (cats.includes(val)) sel.value = val;
+  });
+}
+
+const CATEGORIES = getAllCats();
 
 function save() {
   localStorage.setItem(storeKey(currentYear), JSON.stringify(expenses));
@@ -880,18 +917,10 @@ function updateApiKeyBtn() {
     btn.textContent = '🔑 設定済み';
     btn.style.color = 'var(--accent)';
     btn.style.borderColor = 'var(--accent)';
-    const m = document.getElementById('uploadMain');
-    const s = document.getElementById('uploadSub');
-    const h = document.getElementById('pdfHint');
-    if(m) m.textContent = '写真・PDF を選択またはドロップ';
-    if(s) s.firstChild.textContent = 'JPG・PNG・HEIC・PDF 対応 / 複数同時OK';
-    if(h) h.textContent = '';
   } else {
     btn.textContent = '🔑 APIキー（任意）';
     btn.style.color = 'var(--text2)';
     btn.style.borderColor = 'var(--border2)';
-    const h = document.getElementById('pdfHint');
-    if(h) h.textContent = 'PDFはスクリーンショットして画像で読み込んでください';
   }
 }
 
@@ -960,11 +989,12 @@ async function processFile(file) {
   const apiKey = getApiKey();
   if (!apiKey) {
     if (isPDF) {
-      showToast('PDFはスクリーンショットして画像で読み込んでください');
-      return;
-    }
+      showToast('PDFの読み取りにはAPIキーが必要です');
     openApiKeyModal();
-    showToast('画像読み取りにはAPIキーが必要です');
+    } else {
+      openApiKeyModal();
+      showToast('読み取りにはAPIキーが必要です');
+    }
     return;
   }
 
@@ -1058,7 +1088,9 @@ function fillScanForm(data, filename) {
 function registerEntry() {
   const date = document.getElementById('f_date').value;
   const month = parseInt(document.getElementById('f_month').value);
-  const category = document.getElementById('f_category').value;
+  const f_catSel = document.getElementById('f_category').value;
+  const category = f_catSel === '__custom__' ? document.getElementById('f_cat_custom').value.trim() || '未分類' : f_catSel;
+  if (f_catSel === '__custom__' && category && category !== '未分類') addCustomCat(category);
   const amount = parseInt(document.getElementById('f_amount').value) || 0;
   const vendor = document.getElementById('f_vendor').value;
   const detail = document.getElementById('f_detail').value;
@@ -1075,7 +1107,9 @@ function registerEntry() {
 function registerManual() {
   const date = document.getElementById('m_date').value;
   const month = date ? parseInt(date.split('-')[1]) : new Date().getMonth() + 1;
-  const category = document.getElementById('m_category').value;
+  const m_catSel = document.getElementById('m_category').value;
+  const category = m_catSel === '__custom__' ? document.getElementById('m_cat_custom').value.trim() || '未分類' : m_catSel;
+  if (m_catSel === '__custom__' && category && category !== '未分類') addCustomCat(category);
   const amount = parseInt(document.getElementById('m_amount').value) || 0;
   const vendor = document.getElementById('m_vendor').value;
   const detail = document.getElementById('m_detail').value;
@@ -1351,6 +1385,7 @@ function hideLoading() {
 
 // Set today as default date
 document.getElementById('m_date').value = new Date().toISOString().split('T')[0];
+rebuildCatSelects();
 document.getElementById('f_date').value = new Date().toISOString().split('T')[0];
 document.getElementById('f_month').value = new Date().getMonth() + 1;
 
@@ -1358,7 +1393,7 @@ document.getElementById('f_month').value = new Date().getMonth() + 1;
 expenses = JSON.parse(localStorage.getItem(storeKey(currentYear)) || '[]');
 // Init year display
 document.getElementById('yearBadge').textContent = currentYear + '年';
-document.title = '経費振り分けアプリ ' + currentYear;
+document.title = '経費まとめ ' + currentYear;
 updateApiKeyBtn();
 
 // Modal backdrop close
