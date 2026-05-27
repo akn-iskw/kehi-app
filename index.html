@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>経費まとめ 2025</title>
+<title>経費まとめ</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root {
@@ -652,7 +652,7 @@ select.field-input { cursor: pointer; }
             </div>
             <div class="field-group">
               <label class="field-label">金額 (¥)</label>
-              <input class="field-input" type="number" id="f_amount" placeholder="0">
+              <input class="field-input" type="text" inputmode="numeric" id="f_amount" placeholder="0">
             </div>
             <div class="field-group full">
               <label class="field-label">取引先</label>
@@ -696,7 +696,7 @@ select.field-input { cursor: pointer; }
           </div>
           <div class="field-group">
             <label class="field-label">金額 (¥)</label>
-            <input class="field-input" type="number" id="m_amount" placeholder="0">
+            <input class="field-input" type="text" inputmode="numeric" id="m_amount" placeholder="0">
           </div>
           <div class="field-group full">
             <label class="field-label">取引先</label>
@@ -782,7 +782,7 @@ select.field-input { cursor: pointer; }
           <select class="field-input" id="edit_category" onchange="if(this.value==='__custom__'){document.getElementById('edit_cat_custom').style.display='block'}else{document.getElementById('edit_cat_custom').style.display='none'}"></select>
           <input class="field-input" type="text" id="edit_cat_custom" placeholder="科目名を入力" style="display:none;margin-top:6px;"></div>
         <div><p style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:4px;">金額（円）</p>
-          <input class="field-input" type="number" id="edit_amount"></div>
+          <input class="field-input" type="text" inputmode="numeric" id="edit_amount"></div>
       </div>
       <div style="margin-bottom:10px;"><p style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:4px;">取引先</p>
         <input class="field-input" type="text" id="edit_vendor"></div>
@@ -1134,7 +1134,7 @@ function registerEntry() {
   const f_catSel = document.getElementById('f_category').value;
   const category = f_catSel === '__custom__' ? document.getElementById('f_cat_custom').value.trim() || '未分類' : f_catSel;
   if (f_catSel === '__custom__' && category && category !== '未分類') addCustomCat(category);
-  const amount = parseInt(document.getElementById('f_amount').value) || 0;
+  const amount = getAmtValue('f_amount');
   const vendor = document.getElementById('f_vendor').value;
   const detail = document.getElementById('f_detail').value;
 
@@ -1153,7 +1153,7 @@ function registerManual() {
   const m_catSel = document.getElementById('m_category').value;
   const category = m_catSel === '__custom__' ? document.getElementById('m_cat_custom').value.trim() || '未分類' : m_catSel;
   if (m_catSel === '__custom__' && category && category !== '未分類') addCustomCat(category);
-  const amount = parseInt(document.getElementById('m_amount').value) || 0;
+  const amount = getAmtValue('m_amount');
   const vendor = document.getElementById('m_vendor').value;
   const detail = document.getElementById('m_detail').value;
 
@@ -1339,17 +1339,33 @@ function getMaxMonth() {
 
 // ── EXCEL EXPORT ──
 function exportToExcel() {
-  if (!expenses.length) { showToast('データがありません'); return; }
+  // 一覧タブの絞り込み状態を取得
+  const monthFilter = document.getElementById('filterMonth').value;
+  const search = document.getElementById('searchInput').value.trim().toLowerCase();
+
+  const filtered = expenses.filter(e => {
+    if (monthFilter && e.month !== parseInt(monthFilter)) return false;
+    if (search && !((e.vendor || '').toLowerCase().includes(search) || (e.detail || '').toLowerCase().includes(search) || (e.category || '').toLowerCase().includes(search))) return false;
+    return true;
+  });
+
+  if (!filtered.length) { showToast('対象データがありません'); return; }
   showLoading('Excelを生成中...');
+
+  // ファイル名に絞り込み条件を反映
+  const monthNames = ['','1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const suffix = monthFilter ? monthNames[parseInt(monthFilter)] : '全月';
+  const searchSuffix = search ? '_' + search : '';
 
   try {
     const wb = XLSX.utils.book_new();
     const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-    const catList = CATEGORIES;
+    const catList = getAllCats();
 
     months.forEach((mName, mi) => {
       const m = mi + 1;
-      const mExpenses = expenses.filter(e => e.month === m).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      if (monthFilter && parseInt(monthFilter) !== m) return;
+      const mExpenses = filtered.filter(e => e.month === m).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
       const wsData = [
         [null, '日付', '借方科目', '金　額', '取引先', '内　　容'],
@@ -1437,7 +1453,7 @@ function exportToExcel() {
     wsSum['!cols'] = [{ wch: 2 }, { wch: 12 }, ...Array(13).fill({ wch: 10 })];
     XLSX.utils.book_append_sheet(wb, wsSum, 'Sheet1');
 
-    XLSX.writeFile(wb, `経費まとめ_${currentYear}年分.xlsx`);
+    XLSX.writeFile(wb, `経費まとめ_${currentYear}年_${suffix}${searchSuffix}.xlsx`);
     showToast('Excelを書き出しました ✓');
   } catch(err) {
     console.error(err);
@@ -1486,9 +1502,34 @@ function hideLoading() {
   }
 })();
 
+
+// ── 金額入力 3桁区切り ──
+function setupAmtInput(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', function() {
+    const raw = this.value.replace(/,/g, '').replace(/[^0-9]/g, '');
+    const num = parseInt(raw) || 0;
+    this.value = num === 0 ? '' : num.toLocaleString('ja-JP');
+  });
+  el.addEventListener('blur', function() {
+    const raw = this.value.replace(/,/g, '');
+    const num = parseInt(raw) || 0;
+    if (num > 0) this.value = num.toLocaleString('ja-JP');
+  });
+}
+
+function getAmtValue(id) {
+  const el = document.getElementById(id);
+  if (!el) return 0;
+  return parseInt(el.value.replace(/,/g, '')) || 0;
+}
+
 // Set today as default date
 document.getElementById('m_date').value = new Date().toISOString().split('T')[0];
 rebuildCatSelects();
+setupAmtInput('f_amount');
+setupAmtInput('m_amount');
 document.getElementById('f_date').value = new Date().toISOString().split('T')[0];
 document.getElementById('f_month').value = new Date().getMonth() + 1;
 
