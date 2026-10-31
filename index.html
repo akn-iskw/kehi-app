@@ -1209,6 +1209,12 @@ const fileInput = document.getElementById('fileInput');
 fileInput.addEventListener('change', async e => {
   const files = [...e.target.files];
   if (!files.length) return;
+  // カード明細っぽいファイル名なら自動でカードモードに切り替え
+  if (files.length === 1) {
+    const name = files[0].name.toLowerCase();
+    const isCardFile = /statement|meisai|明細|card|crd/.test(name);
+    if (isCardFile && currentScanMode !== 'card') setScanMode('card');
+  }
   for (const file of files) {
     await processFile(file);
   }
@@ -1331,9 +1337,22 @@ async function processFile(file) {
       if (!data.content || !data.content.length) throw new Error('レスポンスが空です');
 
       const text = data.content.map(b => b.text || '').join('');
-      const jsonMatch = text.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error('JSONが見つかりません: ' + text.slice(0, 100));
-      const items = JSON.parse(jsonMatch[0]);
+      // コードブロックや前置きテキストを除去してJSONを抽出
+      const jsonMatch = text.match(/\[[\s\S]*?\]/s) || text.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        console.error('Card AI response:', text);
+        throw new Error('明細リストが見つかりません');
+      }
+      let items;
+      try {
+        items = JSON.parse(jsonMatch[0]);
+      } catch(parseErr) {
+        // さらに前後のゴミを除いて再試行
+        const cleaned = text.replace(/```[a-z]*/gi, '').replace(/```/g, '').trim();
+        const m2 = cleaned.match(/\[[\s\S]*\]/);
+        if (!m2) throw new Error('JSON解析失敗: ' + text.slice(0, 120));
+        items = JSON.parse(m2[0]);
+      }
       showCardItems(items, file.name);
 
     } else {
@@ -1370,9 +1389,11 @@ async function processFile(file) {
       if (!data.content || !data.content.length) throw new Error('レスポンスが空です');
 
       const text = data.content.map(b => b.text || '').join('');
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const cleaned = text.replace(/```[a-z]*/gi, '').replace(/```/g, '').trim();
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('JSONが見つかりません: ' + text.slice(0, 100));
-      const parsed = JSON.parse(jsonMatch[0]);
+      let parsed;
+      try { parsed = JSON.parse(jsonMatch[0]); } catch(e) { throw new Error('JSON解析失敗: ' + e.message); }
       fillScanForm(parsed, file.name);
     }
   } catch (err) {
