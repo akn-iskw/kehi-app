@@ -907,14 +907,18 @@ async function saveSupabaseSettings() {
     localStorage.setItem(SB_KEY_KEY, key);
     _sbClient = testClient;
     updateSyncStatus('on');
-    resultEl.textContent = '✓ 接続成功！データを読み込みます';
+    resultEl.textContent = '✓ 接続成功！';
     resultEl.style.color = 'var(--accent)';
+    updateSyncStatus('on');
     setTimeout(async () => {
       closeSupabaseModal();
-      await loadYearFromSupabase(currentYear);
-      renderTable && renderTable();
-      renderSummary && renderSummary();
-    }, 1000);
+      const loaded = await loadYearFromSupabase(currentYear);
+      if (loaded) {
+        const activeTab = document.querySelector('.tab-panel.active');
+        if (activeTab && activeTab.id === 'tab-list') renderTable();
+        if (activeTab && activeTab.id === 'tab-summary') renderSummary();
+      }
+    }, 800);
   } catch(e) {
     resultEl.textContent = '✗ 接続エラー: ' + (e.message || '設定を確認してください');
     resultEl.style.color = 'var(--danger)';
@@ -946,8 +950,8 @@ async function loadYearFromSupabase(y) {
     updateSyncStatus('connecting');
     const { data, error } = await _sbClient.from('expenses').select('*').eq('year', y);
     if (error) throw error;
-    // Map Supabase rows to local format
-    expenses = data.map(r => ({
+    // Map Supabase rows to local format (empty array is OK — table might just be empty)
+    expenses = (data || []).map(r => ({
       id: r.entry_id,
       date: r.date,
       month: r.month,
