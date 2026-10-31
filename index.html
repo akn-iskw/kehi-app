@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>経費まとめ</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
 <style>
 :root {
   --bg: #f5f3ef;
@@ -555,6 +556,7 @@ select.field-input { cursor: pointer; }
   <header>
     <h1>経費まとめ</h1>
     <span class="year-badge" id="yearBadge" onclick="openYearPicker()" title="クリックして年を変更" style="cursor:pointer;flex-shrink:0;">2025年</span>
+    <span id="syncStatus" title="Supabase接続状態" style="font-size:11px;color:var(--text3);cursor:pointer;white-space:nowrap;" onclick="openSupabaseModal()">⬜ 同期</span>
     <button id="apiKeyBtn" onclick="openApiKeyModal()" title="APIキー設定" style="background:none;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text2);font-family:inherit;white-space:nowrap;margin-left:auto;">🔑 APIキー</button>
   </header>
 
@@ -569,6 +571,26 @@ select.field-input { cursor: pointer; }
         <button onclick="saveApiKey()" style="flex:1;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">保存する</button>
         <button onclick="clearApiKey()" style="padding:9px 14px;background:var(--danger-light);color:var(--danger);border:1px solid var(--danger);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit;">削除</button>
         <button onclick="closeApiKeyModal()" style="padding:9px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit;color:var(--text);">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUPABASE SETTINGS MODAL -->
+  <div id="supabaseModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:400;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border-radius:var(--radius);padding:24px;width:min(460px,94vw);box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <p style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;">Supabase 同期設定</p>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6;">設定するとスマホ・PCで同じデータを共有できます。<br>Supabaseのプロジェクト設定 → API からURLとanonキーを確認してください。</p>
+      <p style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;">Project URL</p>
+      <input id="sbUrlInput" type="text" placeholder="https://xxxxxxxxxxxx.supabase.co" autocomplete="off"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:12px;color:var(--text);font-family:monospace;margin-bottom:10px;">
+      <p style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;">Anon Key</p>
+      <input id="sbKeyInput" type="password" placeholder="eyJhbGci..." autocomplete="off"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:12px;color:var(--text);font-family:monospace;margin-bottom:14px;">
+      <div id="sbTestResult" style="font-size:12px;margin-bottom:12px;min-height:18px;"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="saveSupabaseSettings()" style="flex:1;min-width:100px;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">保存・接続</button>
+        <button onclick="clearSupabaseSettings()" style="padding:9px 14px;background:var(--danger-light);color:var(--danger);border:1px solid var(--danger);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit;">削除</button>
+        <button onclick="closeSupabaseModal()" style="padding:9px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit;color:var(--text);">閉じる</button>
       </div>
     </div>
   </div>
@@ -819,6 +841,168 @@ function toggleCustomCat(selId, inputId) {
   }
 }
 
+// ── SUPABASE ──
+const SB_URL_KEY = 'sb_url';
+const SB_KEY_KEY = 'sb_key';
+let _sbClient = null;
+
+function getSbUrl() { return localStorage.getItem(SB_URL_KEY) || ''; }
+function getSbKey() { return localStorage.getItem(SB_KEY_KEY) || ''; }
+
+function initSupabase() {
+  const url = getSbUrl();
+  const key = getSbKey();
+  if (url && key) {
+    try {
+      _sbClient = supabase.createClient(url, key);
+      updateSyncStatus('connecting');
+    } catch(e) {
+      _sbClient = null;
+      updateSyncStatus('off');
+    }
+  } else {
+    _sbClient = null;
+    updateSyncStatus('off');
+  }
+}
+
+function updateSyncStatus(state) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  if (state === 'on') { el.textContent = '🟢 同期中'; el.style.color = 'var(--accent)'; }
+  else if (state === 'connecting') { el.textContent = '🟡 接続中'; el.style.color = 'var(--amber)'; }
+  else if (state === 'error') { el.textContent = '🔴 同期エラー'; el.style.color = 'var(--danger)'; }
+  else { el.textContent = '⬜ 同期オフ'; el.style.color = 'var(--text3)'; }
+}
+
+function openSupabaseModal() {
+  const url = getSbUrl();
+  const key = getSbKey();
+  document.getElementById('sbUrlInput').value = url || '';
+  document.getElementById('sbKeyInput').value = key ? '（保存済み）' : '';
+  document.getElementById('sbKeyInput').placeholder = key ? '新しいキーを入力して上書き' : 'eyJhbGci...';
+  document.getElementById('sbTestResult').textContent = '';
+  document.getElementById('supabaseModal').style.display = 'flex';
+}
+
+function closeSupabaseModal() {
+  document.getElementById('supabaseModal').style.display = 'none';
+}
+
+async function saveSupabaseSettings() {
+  const url = document.getElementById('sbUrlInput').value.trim();
+  const keyInp = document.getElementById('sbKeyInput').value.trim();
+  const key = (keyInp === '（保存済み）') ? getSbKey() : keyInp;
+  const resultEl = document.getElementById('sbTestResult');
+
+  if (!url || !key) { resultEl.textContent = '⚠ URLとキーを入力してください'; resultEl.style.color = 'var(--danger)'; return; }
+  if (!url.includes('supabase.co')) { resultEl.textContent = '⚠ URLの形式が正しくありません'; resultEl.style.color = 'var(--danger)'; return; }
+
+  resultEl.textContent = '接続テスト中...'; resultEl.style.color = 'var(--text2)';
+  try {
+    const testClient = supabase.createClient(url, key);
+    const { data, error } = await testClient.from('expenses').select('id').limit(1);
+    if (error) throw error;
+    localStorage.setItem(SB_URL_KEY, url);
+    localStorage.setItem(SB_KEY_KEY, key);
+    _sbClient = testClient;
+    updateSyncStatus('on');
+    resultEl.textContent = '✓ 接続成功！データを読み込みます';
+    resultEl.style.color = 'var(--accent)';
+    setTimeout(async () => {
+      closeSupabaseModal();
+      await loadYearFromSupabase(currentYear);
+      renderTable && renderTable();
+      renderSummary && renderSummary();
+    }, 1000);
+  } catch(e) {
+    resultEl.textContent = '✗ 接続エラー: ' + (e.message || '設定を確認してください');
+    resultEl.style.color = 'var(--danger)';
+    updateSyncStatus('error');
+  }
+}
+
+function clearSupabaseSettings() {
+  if (!confirm('Supabase設定を削除しますか？\nローカルのデータは保持されます。')) return;
+  localStorage.removeItem(SB_URL_KEY);
+  localStorage.removeItem(SB_KEY_KEY);
+  _sbClient = null;
+  updateSyncStatus('off');
+  closeSupabaseModal();
+  showToast('Supabase設定を削除しました');
+}
+
+document.getElementById('supabaseModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('supabaseModal')) closeSupabaseModal();
+});
+document.getElementById('sbKeyInput').addEventListener('focus', e => {
+  if (e.target.value === '（保存済み）') e.target.value = '';
+});
+
+// ── SUPABASE CRUD ──
+async function loadYearFromSupabase(y) {
+  if (!_sbClient) return false;
+  try {
+    updateSyncStatus('connecting');
+    const { data, error } = await _sbClient.from('expenses').select('*').eq('year', y);
+    if (error) throw error;
+    // Map Supabase rows to local format
+    expenses = data.map(r => ({
+      id: r.entry_id,
+      date: r.date,
+      month: r.month,
+      category: r.category,
+      amount: r.amount,
+      vendor: r.vendor || '',
+      detail: r.detail || ''
+    }));
+    // Also save to localStorage as cache
+    localStorage.setItem(storeKey(y), JSON.stringify(expenses));
+    updateSyncStatus('on');
+    return true;
+  } catch(e) {
+    console.error('Supabase load error:', e);
+    updateSyncStatus('error');
+    return false;
+  }
+}
+
+async function upsertToSupabase(entry) {
+  if (!_sbClient) return;
+  try {
+    const row = {
+      entry_id: entry.id,
+      date: entry.date,
+      month: entry.month,
+      category: entry.category,
+      amount: entry.amount,
+      vendor: entry.vendor || '',
+      detail: entry.detail || '',
+      year: currentYear
+    };
+    const { error } = await _sbClient.from('expenses').upsert(row, { onConflict: 'entry_id' });
+    if (error) throw error;
+    updateSyncStatus('on');
+  } catch(e) {
+    console.error('Supabase upsert error:', e);
+    updateSyncStatus('error');
+    showToast('⚠ クラウド同期に失敗しました（ローカルには保存済み）');
+  }
+}
+
+async function deleteFromSupabase(entryId) {
+  if (!_sbClient) return;
+  try {
+    const { error } = await _sbClient.from('expenses').delete().eq('entry_id', entryId);
+    if (error) throw error;
+    updateSyncStatus('on');
+  } catch(e) {
+    console.error('Supabase delete error:', e);
+    updateSyncStatus('error');
+    showToast('⚠ クラウド削除に失敗しました');
+  }
+}
+
 // ── DATA STORE ──
 const YEAR_KEY = 'expenseYear';
 let currentYear = parseInt(localStorage.getItem(YEAR_KEY) || new Date().getFullYear());
@@ -826,10 +1010,14 @@ let currentYear = parseInt(localStorage.getItem(YEAR_KEY) || new Date().getFullY
 function storeKey(y) { return 'expenses_' + y + '_v2'; }
 let expenses = JSON.parse(localStorage.getItem(storeKey(currentYear)) || '[]');
 
-function initYear(y) {
+async function initYear(y) {
   currentYear = y;
   localStorage.setItem(YEAR_KEY, y);
-  expenses = JSON.parse(localStorage.getItem(storeKey(y)) || '[]');
+  // Try Supabase first, fallback to localStorage
+  const loaded = await loadYearFromSupabase(y);
+  if (!loaded) {
+    expenses = JSON.parse(localStorage.getItem(storeKey(y)) || '[]');
+  }
   document.getElementById('yearBadge').textContent = y + '年';
   document.title = '経費まとめ ' + y;
 }
@@ -850,8 +1038,8 @@ function openYearPicker() {
   document.getElementById('yearModal').style.display = 'flex';
 }
 
-function selectYear(y) {
-  initYear(y);
+async function selectYear(y) {
+  await initYear(y);
   closeYearPicker();
   showToast(y + '年のデータに切り替えました');
   const activeTab = document.querySelector('.tab-panel.active');
@@ -905,8 +1093,9 @@ function rebuildCatSelects() {
 
 const CATEGORIES = getAllCats();
 
-function save() {
+function save(entryToSync) {
   localStorage.setItem(storeKey(currentYear), JSON.stringify(expenses));
+  if (entryToSync && _sbClient) upsertToSupabase(entryToSync);
 }
 
 function catClass(cat) {
@@ -1140,8 +1329,9 @@ function registerEntry() {
 
   if (!date || !amount) { showToast('日付と金額は必須です'); return; }
 
-  expenses.push({ id: Date.now(), date, month, category, amount, vendor, detail });
-  save();
+  const newEntry = { id: Date.now(), date, month, category, amount, vendor, detail };
+  expenses.push(newEntry);
+  save(newEntry);
   document.getElementById('resultCard').classList.remove('show');
   document.getElementById('previewImgWrap').style.display = 'none';
   showToast('登録しました ✓');
@@ -1159,8 +1349,9 @@ function registerManual() {
 
   if (!amount) { showToast('金額を入力してください'); return; }
 
-  expenses.push({ id: Date.now(), date: date || new Date().toISOString().split('T')[0], month, category, amount, vendor, detail });
-  save();
+  const newEntry2 = { id: Date.now(), date: date || new Date().toISOString().split('T')[0], month, category, amount, vendor, detail };
+  expenses.push(newEntry2);
+  save(newEntry2);
   document.getElementById('m_date').value = '';
   document.getElementById('m_amount').value = '';
   document.getElementById('m_vendor').value = '';
@@ -1214,6 +1405,7 @@ function deleteEntry(id) {
   if (!confirm('削除しますか？')) return;
   expenses = expenses.filter(e => e.id !== id);
   save();
+  deleteFromSupabase(id);
   renderTable();
   showToast('削除しました');
 }
@@ -1269,7 +1461,7 @@ function saveEdit() {
   const idx = expenses.findIndex(e => e.id === id);
   if (idx === -1) return;
   expenses[idx] = { ...expenses[idx], date, month, category, amount, vendor, detail };
-  save();
+  save(expenses[idx]);
   closeEditModal();
   renderTable();
   showToast('更新しました ✓');
@@ -1533,12 +1725,23 @@ setupAmtInput('m_amount');
 document.getElementById('f_date').value = new Date().toISOString().split('T')[0];
 document.getElementById('f_month').value = new Date().getMonth() + 1;
 
-// Init year display
+// Init year display from localStorage (initial fast load)
 expenses = JSON.parse(localStorage.getItem(storeKey(currentYear)) || '[]');
-// Init year display
 document.getElementById('yearBadge').textContent = currentYear + '年';
 document.title = '経費まとめ ' + currentYear;
 updateApiKeyBtn();
+
+// Init Supabase and reload if connected
+initSupabase();
+if (_sbClient) {
+  loadYearFromSupabase(currentYear).then(loaded => {
+    if (loaded) {
+      const activeTab = document.querySelector('.tab-panel.active');
+      if (activeTab && activeTab.id === 'tab-list') renderTable();
+      if (activeTab && activeTab.id === 'tab-summary') renderSummary();
+    }
+  });
+}
 
 // Modal backdrop close
 document.getElementById('editModal').addEventListener('click', e => {
