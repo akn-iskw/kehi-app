@@ -1405,8 +1405,6 @@ async function processFile(file) {
   }
 }
 
-const CATEGORIES = ['旅費交通費','車両費','接待交際費','消耗品費','通信費','地代家賃','損害保険料','会議・研修費','租税公課','修繕費','支払手数料','雑費'];
-
 function showCardItems(items, filename) {
   cardExtractedItems = items.map((item, i) => ({ ...item, _idx: i, _checked: true }));
   document.getElementById('cardResultTitle').textContent = filename ? `カード明細：${filename}` : 'カード明細 読み取り結果';
