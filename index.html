@@ -610,23 +610,21 @@ select.field-input { cursor: pointer; }
   </div>
 
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('scan')">📷 スキャン</button>
-    <button class="tab" onclick="switchTab('list')">📋 一覧</button>
-    <button class="tab" onclick="switchTab('summary')">📊 集計</button>
+    <button class="tab active" onclick="switchTab('scan')">新規登録</button>
+    <button class="tab" onclick="switchTab('list')">一覧</button>
+    <button class="tab" onclick="switchTab('summary')">集計</button>
   </div>
 
   <!-- SCAN TAB -->
   <div id="tab-scan" class="tab-panel active">
     <div class="upload-section">
       <div class="upload-header">
-        <div class="section-icon icon-green">📷</div>
-        <span class="section-label">領収書・レシートをアップロード</span>
+                <span class="section-label">領収書・レシートをアップロード</span>
       </div>
       <div class="upload-body">
         <div class="dropzone" id="dropzone">
           <input type="file" id="fileInput" accept="image/*,application/pdf" multiple>
-          <div class="drop-icon">📷</div>
-          <p class="drop-main" id="uploadMain">写真・PDF を選択またはドロップ</p>
+                    <p class="drop-main" id="uploadMain">写真・PDF を選択またはドロップ</p>
           <p class="drop-sub" id="uploadSub">JPG・PNG・HEIC・PDF 対応 / 複数同時OK</p>
         </div>
 
@@ -696,8 +694,7 @@ select.field-input { cursor: pointer; }
     <!-- manual entry -->
     <div class="upload-section">
       <div class="upload-header">
-        <div class="section-icon icon-amber">✏️</div>
-        <span class="section-label">手動入力</span>
+                <span class="section-label">手動入力</span>
       </div>
       <div class="upload-body">
         <div class="result-fields" style="padding:0;">
@@ -1738,13 +1735,16 @@ updateApiKeyBtn();
 // Init Supabase and reload if connected
 initSupabase();
 if (_sbClient) {
-  loadYearFromSupabase(currentYear).then(loaded => {
-    if (loaded) {
-      const activeTab = document.querySelector('.tab-panel.active');
-      if (activeTab && activeTab.id === 'tab-list') renderTable();
-      if (activeTab && activeTab.id === 'tab-summary') renderSummary();
-    }
-  });
+  // Small delay to ensure Supabase SDK is ready
+  setTimeout(() => {
+    loadYearFromSupabase(currentYear).then(loaded => {
+      if (loaded) {
+        const activeTab = document.querySelector('.tab-panel.active');
+        if (activeTab && activeTab.id === 'tab-list') renderTable();
+        if (activeTab && activeTab.id === 'tab-summary') renderSummary();
+      }
+    });
+  }, 300);
 }
 
 // Modal backdrop close
