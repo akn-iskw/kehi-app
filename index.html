@@ -556,8 +556,8 @@ select.field-input { cursor: pointer; }
   <header>
     <h1>経費まとめ</h1>
     <span class="year-badge" id="yearBadge" onclick="openYearPicker()" title="クリックして年を変更" style="cursor:pointer;flex-shrink:0;">2025年</span>
-    <span id="syncStatus" title="Supabase接続状態" style="font-size:11px;color:var(--text3);cursor:pointer;white-space:nowrap;" onclick="openSupabaseModal()">⬜ 同期</span>
-    <button id="apiKeyBtn" onclick="openApiKeyModal()" title="APIキー設定" style="background:none;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text2);font-family:inherit;white-space:nowrap;margin-left:auto;">🔑 APIキー</button>
+    <button id="syncStatus" title="Supabase同期設定" onclick="openSupabaseModal()" style="background:none;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text2);font-family:inherit;white-space:nowrap;margin-left:auto;">⬜ 同期</button>
+    <button id="apiKeyBtn" onclick="openApiKeyModal()" title="APIキー設定" style="background:none;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text2);font-family:inherit;white-space:nowrap;">🔑 APIキー</button>
   </header>
 
   <!-- API KEY MODAL -->
@@ -888,10 +888,10 @@ function initSupabase() {
 function updateSyncStatus(state) {
   const el = document.getElementById('syncStatus');
   if (!el) return;
-  if (state === 'on') { el.textContent = '🟢 同期中'; el.style.color = 'var(--accent)'; }
-  else if (state === 'connecting') { el.textContent = '🟡 接続中'; el.style.color = 'var(--amber)'; }
-  else if (state === 'error') { el.textContent = '🔴 同期エラー'; el.style.color = 'var(--danger)'; }
-  else { el.textContent = '⬜ 同期オフ'; el.style.color = 'var(--text3)'; }
+  if (state === 'on') { el.textContent = '🟢 同期中'; el.style.color = 'var(--accent)'; el.style.borderColor = 'var(--accent)'; }
+  else if (state === 'connecting') { el.textContent = '🟡 接続中'; el.style.color = 'var(--text2)'; el.style.borderColor = 'var(--border2)'; }
+  else if (state === 'error') { el.textContent = '🔴 同期エラー'; el.style.color = 'var(--danger)'; el.style.borderColor = 'var(--danger)'; }
+  else { el.textContent = '⬜ 同期オフ'; el.style.color = 'var(--text2)'; el.style.borderColor = 'var(--border2)'; }
 }
 
 function openSupabaseModal() {
